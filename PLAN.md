@@ -145,9 +145,10 @@ Implemented appearance groundwork: a session-local LilyPond palette with
 `--vim-style user` opt-out; warm/night/original PDF themes with `--preview-theme`
 and prefix/direct PDF `t`; styled header/pane bars with unchanged row geometry.
 Configuration persistence and native terminal qualification remain below.
-No-argument sessions also create a collision-safe named temporary sketch, prompt
-through Vim on first save, adopt the permanent path for compilation/watchers,
-and retain interrupted drafts/recovery files.
+No-argument sessions show a startup chooser with filesystem browsing and path
+completion for opening `.ly` scores or choosing a new score's location. New
+files get editable musical name suggestions and exclusive creation; Vim starts
+with the selected permanent path and saves normally from the first write.
 
 - Add versioned TOML config for executables, theme, compile-on-save, debounce,
   renderer preference, SoundFont, audio backend and configurable prefix/bindings.

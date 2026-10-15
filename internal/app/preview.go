@@ -151,12 +151,6 @@ func (m *model) cyclePreviewTheme() {
 	m.requestPreview()
 }
 func (m *model) previewStatus() string {
-	if m.draftErr != "" {
-		return cleanLabel(m.draftErr)
-	}
-	if m.untitled {
-		return "New sketch · :w to choose a filename"
-	}
 	if m.previewErr != "" {
 		return m.previewErr
 	}

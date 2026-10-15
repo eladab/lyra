@@ -30,32 +30,24 @@ make install
 lyra examples/playback.ly
 ```
 
-Run `lyra` on its own to start a new sketch. It creates an empty score with a
-musical name such as `starlit-cadenza.ly` or `copper-nocturne.ly` in its own
-private `/tmp/lyra-sketch-*` directory. The unique directory prevents collisions
-between sessions; Lyra never reuses another sketch.
+Run `lyra` without a filename to open a startup chooser:
 
-The first `:w` opens Vim's **Save score as:** prompt with the musical basename
-suggested. Enter a filename or path (Tab completes paths); Enter accepts the
-suggestion in Vim's current directory, and Ctrl+U clears it for a different name.
-Spaces, Unicode and `~/` work. Esc or
-Ctrl+C cancels, keeping the sketch open and modified. Vim may ask for Enter to
-dismiss its cancellation message. Failed writes also keep the sketch open.
-An existing destination is refused; use an explicit `:saveas! path` if you intend
-to replace it. You can also choose a new path directly with `:w path` or
-`:saveas path`, without the prompt.
+- **Open a score** browses folders and existing `.ly` files. Use arrows or `j`/`k`
+  to select, Enter to open, and Left to go to the parent folder. `.` toggles hidden
+  files, `~` goes home, and `/` lets you enter a path directly.
+- **Create a score** lets you browse to a folder, then press `n` to choose the
+  filename and location. Lyra suggests a musical name such as `starlit-cadenza.ly`;
+  edit it or use Ctrl+U to enter a different path. Enter creates the empty score
+  and opens Vim. Existing files are refused, and `.ly` is added when omitted.
 
-After the successful first save, the named file becomes the editor buffer and
-Lyra's build target. Subsequent `:w` saves normally, and compile-on-save, relative
-includes, PDF preview and playback follow that file. An unnamed sketch is not
-engraved before its first save. `:wq` also prompts; `:x`/`ZZ` prompt when there
-are changes to save, retaining Vim's normal no-write exit for an untouched buffer.
+Path fields support Tab completion, spaces, Unicode and `~/`. Relative paths
+start in the displayed folder. Esc goes back, and `q` in the menu/browser or
+Ctrl+C exits. Browsing or cancelling creates no score. The destination folder
+must already exist; the chosen score is a permanent file and remains on exit.
 
-Empty abandoned sketches and temporary originals saved elsewhere are cleaned up
-after normal exit. Interruptions retain the draft and any Vim swap files;
-ordinary Vim recovery rules still apply. Lyra also preserves a nonempty temporary
-score written directly by a plugin, and never recursively removes unknown files
-from a sketch directory. Choosing the temporary path itself preserves that file.
+Vim starts after you choose a score. The first `:w` saves normally, and
+compile-on-save, relative includes, PDF preview and playback follow the selected
+file. `lyra path/to/score.ly` still opens that file directly without the chooser.
 
 Homebrew must already be installed and on PATH. `make install` runs `make deps`
 using the project's [Brewfile](Brewfile) (Go, Vim, LilyPond, Poppler, FluidSynth and mpv), builds
@@ -95,7 +87,7 @@ Use `--pdfinfo /path/to/pdfinfo --pdftoppm /path/to/pdftoppm` for custom Poppler
 
 Flags precede the filename; use `--` for a filename beginning with `-`. Paths with
 spaces work. A new explicitly named source is created when you save it in Vim;
-the no-argument sketch is created immediately in its private temporary directory. The
+the startup chooser creates a new score only after you confirm its location. The
 `--vim` value is one executable path, not a shell command. Neovim is rejected,
 including when it is renamed or symlinked to `vim`.
 
@@ -184,11 +176,10 @@ coordinates are translated and encoded according to Vim's requested mouse mode.
 
 ## Engraving and includes
 
-Lyra builds the **file passed on the command line**, initially and after saves.
+Lyra builds the **file passed on the command line or selected at startup**,
+initially and after saves.
 Opening another buffer in Vim does not change the build target. Save with `:w`
 before a manual rebuild; unsaved buffer contents are never compiled.
-For a no-argument sketch, the chosen first-save destination becomes this fixed
-target instead; compilation starts only after that successful save.
 
 An additive `BufWritePost` hook is loaded for this Vim session after normal
 startup. It notifies saves of the launch score without changing `.vimrc`, user

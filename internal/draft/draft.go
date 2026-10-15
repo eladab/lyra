@@ -1,6 +1,6 @@
-// Package draft creates private, temporary scores for sessions started without
-// a filename. Callers decide when a draft has been saved elsewhere or explicitly
-// discarded; closing an interrupted session must not remove recovery files.
+// Package draft suggests musical score names and provides private temporary
+// score utilities. The startup chooser uses SuggestedName without creating a
+// temporary score; callers of Create own its conservative cleanup policy.
 package draft
 
 import (
@@ -38,6 +38,19 @@ func Create() (*Draft, error) {
 	return createIn("/tmp")
 }
 
+// SuggestedName offers a musical filename without creating any files.
+func SuggestedName() (string, error) {
+	mood, err := rand.Int(rand.Reader, big.NewInt(int64(len(moods))))
+	if err != nil {
+		return "", fmt.Errorf("choose score name: %w", err)
+	}
+	form, err := rand.Int(rand.Reader, big.NewInt(int64(len(forms))))
+	if err != nil {
+		return "", fmt.Errorf("choose score name: %w", err)
+	}
+	return moods[mood.Int64()] + "-" + forms[form.Int64()] + ".ly", nil
+}
+
 func createIn(root string) (*Draft, error) {
 	dir, err := os.MkdirTemp(root, "lyra-sketch-")
 	if err != nil {
@@ -50,17 +63,12 @@ func createIn(root string) (*Draft, error) {
 		cleanup()
 		return nil, fmt.Errorf("inspect draft directory: %w", err)
 	}
-	mood, err := rand.Int(rand.Reader, big.NewInt(int64(len(moods))))
+	name, err := SuggestedName()
 	if err != nil {
 		cleanup()
 		return nil, fmt.Errorf("choose draft name: %w", err)
 	}
-	form, err := rand.Int(rand.Reader, big.NewInt(int64(len(forms))))
-	if err != nil {
-		cleanup()
-		return nil, fmt.Errorf("choose draft name: %w", err)
-	}
-	path := filepath.Join(dir, moods[mood.Int64()]+"-"+forms[form.Int64()]+".ly")
+	path := filepath.Join(dir, name)
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		cleanup()

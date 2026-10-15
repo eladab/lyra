@@ -35,7 +35,7 @@ func parse(args []string, output io.Writer) (app.Options, error) {
 		return nil
 	})
 	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: lyra [options] [composition.ly]\n\nLyra: embedded Vim, LilyPond builds, PDF preview and MIDI playback.\nWithout a filename, start a private sketch and choose its name on first save.\nCtrl+\\ then Space plays/pauses; a opens audio; p previews; h opens help.\n:q or :wq exits through Vim.")
+		fmt.Fprintln(output, "Usage: lyra [options] [composition.ly]\n\nLyra: embedded Vim, LilyPond builds, PDF preview and MIDI playback.\nWithout a filename, browse for a score or choose where to create one.\nCtrl+\\ then Space plays/pauses; a opens audio; p previews; h opens help.\n:q or :wq exits through Vim.")
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {

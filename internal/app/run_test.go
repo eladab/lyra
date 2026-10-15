@@ -261,6 +261,10 @@ echo run >> "$source.builds"
 			waitFor(t, "saved score compiles in the background", func() bool { b, _ := os.ReadFile(file + ".builds"); return len(b) > 0 })
 			if midiFixture != "" {
 				hasOutput := func(want string) bool { mu.Lock(); defer mu.Unlock(); return strings.Contains(output.String(), want) }
+				// The compiler marker precedes the app's build result and MIDI
+				// handoff. A play request before that handoff may be superseded
+				// by the saved score's generation, so wait for its prepared take.
+				waitFor(t, "saved score audio is ready", func() bool { return hasOutput("Ready 0:00/") })
 				write("\x1ca\x1c ")
 				waitFor(t, "full app starts actual MIDI playback", func() bool { return hasOutput("Playing") })
 				write("\x1c ")

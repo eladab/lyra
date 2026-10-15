@@ -47,13 +47,13 @@ GeneralUser GS is the optional, checksum-pinned installed default.
 Appearance polish adds a session-local LilyPond syntax/palette overlay (opt out
 with `--vim-style user`), warm/night/original-paper PDF themes, and styled chrome
 without adding terminal rows. Never edit the user's Vim configuration for this.
-Running without a filename creates an empty private `/tmp/lyra-sketch-*` score
-with a musical basename. The draft buffer's first full save uses Vim's filename
-prompt and atomically publishes the successful destination. Adopt that path once
-as editor/header/build target, restart its directory/include watches, and keep
-build generations monotonic. No engraving occurs before adoption. Named launches
-still keep their launch score as target. Preserve temporary drafts/recovery on
-abnormal exit and never remove the adopted score or unknown sketch-directory files.
+Running without a filename shows a startup chooser to browse existing `.ly`
+scores or choose a folder and filename for a new score. Suggest a musical name,
+but create nothing until the user confirms the destination. New files must be
+created exclusively without replacing existing paths. The chosen score is a
+permanent file and the fixed editor/header/build target; Vim saves it normally
+from the first `:w`. Named launches bypass the chooser. The chooser must join
+its sole raw reader and restore terminal modes before the editor reader starts.
 
 The module name is `lyra`, a local module path, pending a chosen repository URL.
 Pinned dependencies are in `go.mod` and `go.sum`. Go 1.26.5 is the initial build
@@ -80,8 +80,8 @@ host terminal input -> cancelable raw reader -> prefix/paste router
 ```
 
 - `cmd/lyra`: CLI parsing and external signal context.
-- `internal/app`: terminal setup/restoration, Bubble Tea model, pane geometry,
-  view, focus and event dispatch.
+- `internal/app`: terminal setup/restoration, startup file chooser, Bubble Tea
+  model, pane geometry, view, focus and event dispatch.
 - `internal/editor`: executable validation, PTY/process ownership, input queue,
   screen emulator and query response bridge.
 - `internal/input`: incremental byte router; bracketed-paste payloads are opaque.
@@ -89,7 +89,7 @@ host terminal input -> cancelable raw reader -> prefix/paste router
 - `internal/watcher`: directory events, polling and literal include discovery.
 - `internal/preview`: bounded Poppler worker, document ownership and Kitty backend.
 - `internal/audio`: synthesis, bounded take ownership, private mpv control/lifecycle.
-- `internal/draft`: private empty sketch creation, musical naming and conservative cleanup.
+- `internal/draft`: musical name suggestions and private temporary score utilities.
 - `internal/testdata`: stable scores for integration tests; never depend on mutable
   user-edited examples or change those scores to make tests pass.
 - `examples/scale.ly`: a small score that includes both layout and MIDI blocks.

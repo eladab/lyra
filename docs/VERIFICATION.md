@@ -202,28 +202,30 @@ score for trying the transport. Tests never repair or replace user scores.
   and real LilyPond/Poppler viewport PNGs. Warm and night composites were visually
   inspected offscreen. This does not establish native graphics interoperability.
 
-## No-argument sketch evidence
+## Startup chooser evidence
 
-- CLI accepts zero or one score path and rejects multiple paths. Private draft
-  tests create 80 sessions concurrently, verify unique directories and `.ly`
-  musical names, check 0700/0600 permissions, and preserve unknown/recovery files
-  and replaced paths during conservative cleanup.
-- Real Vim PTY tests cover the suggested basename in the current directory,
-  spaces/Unicode, `~/`, literal Ex metacharacters, cancellation with Esc/Ctrl+C,
-  failed writes and retries, existing-target refusal including unmodified/undone
-  drafts, explicit `:w`/`:saveas`/force, `:wq`/`:x`/`ZZ`, write hooks, custom write
-  commands, other buffers, notification failure/retry and internal-path refusal.
-- Complete outer-PTY application tests start with no filename, cancel the first
-  `:wq`, save to a chosen Unicode path, see the header change, and verify compiler
-  source/cwd, later saves and include-file rebuilds follow the adopted score.
-  Normal exit cleans the temporary original; SIGTERM retains the unnamed draft.
-- With Vim swap enabled, both direct SIGHUP and session shutdown preserve a real
-  draft swap. A second isolated traditional `vim -r` recovers the exact unsaved
-  Unicode text while the empty original and missing adoption marker stay intact.
-- Build service tests prove paused drafts do not compile, source/include watches
-  move after adoption, old-source events/results are rejected, generations remain
-  monotonic and failed retarget builds retain last good PDF/MIDI. The notification
-  reader is bounded, runs off the UI thread, joins on exit and supports retry.
+- CLI accepts zero or one score path and rejects multiple paths. No-argument
+  launches show an Open/Create menu; named launches retain the direct editor
+  path covered by the existing whole-application tests.
+- Browser tests cover sorted folders and `.ly` scores, hidden-file filtering,
+  directory symlinks, nonregular-file refusal, Unicode paths, home expansion,
+  directory navigation, selected-file opening and asynchronous path completion.
+  Stale directory/completion results cannot replace a newer form or edited path.
+- New-file tests protect existing scores, reject invalid paths, add a missing
+  `.ly` extension, and make twelve concurrent creation attempts at one location:
+  exactly one succeeds. Cancelling before confirmation creates nothing.
+- View tests cover menu, browser and path forms in tiny and normal terminals,
+  long paths, control-bearing filenames, fixed dialog geometry and exact row
+  widths. Directory reads run off the UI thread with bounded listings.
+- Complete outer-PTY tests use a real traditional Vim and isolated `.vimrc`.
+  They open an existing Unicode path, create a new score in a chosen directory,
+  refuse replacement of an existing score, resize the chooser before opening,
+  and verify Vim receives the selected file and current terminal dimensions.
+  Compiler source/cwd and save-triggered rebuilds follow the chosen path, and
+  the first `:w` uses ordinary Vim saving. Selected files remain after exit.
+- Separate outer-PTY cases quit from the menu and send SIGTERM from the filename
+  form. Vim never starts, no new score appears, reader shutdown completes, and
+  the helper verifies original input/output terminal settings are restored.
 
 ## Pending native visual acceptance
 
