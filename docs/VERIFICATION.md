@@ -12,7 +12,7 @@ Audio: Homebrew FluidSynth 2.6.1, mpv 0.41.0, GeneralUser GS 2.0.3.
 | Check | Result |
 | --- | --- |
 | `go vet ./...` | Passed |
-| `LYRA_TEST_LILYPOND=... LYRA_TEST_SOUNDFONT=... go test -race -timeout 90s ./...` | All eight packages, including real Vim, LilyPond, Poppler, FluidSynth and mpv integration |
+| `LYRA_TEST_LILYPOND=... LYRA_TEST_SOUNDFONT=... go test -race -timeout 90s ./...` | All nine packages, including real Vim, LilyPond, Poppler, FluidSynth and mpv integration |
 | `LYRA_TEST_MACOS_AUDIO=1 ... go test -race -run TestMacOSAudioOutput ./internal/audio` | Qualification open: two early CoreAudio checks passed, later runs stalled; see playback evidence |
 | `go build -o bin/lyra ./cmd/lyra` | Passed, native macOS arm64 binary |
 | `./bin/lyra --help` | Passed |
@@ -201,6 +201,29 @@ score for trying the transport. Tests never repair or replace user scores.
   TestAppearanceArtifacts ./internal/app` exports actual styled Vim/model rows
   and real LilyPond/Poppler viewport PNGs. Warm and night composites were visually
   inspected offscreen. This does not establish native graphics interoperability.
+
+## No-argument sketch evidence
+
+- CLI accepts zero or one score path and rejects multiple paths. Private draft
+  tests create 80 sessions concurrently, verify unique directories and `.ly`
+  musical names, check 0700/0600 permissions, and preserve unknown/recovery files
+  and replaced paths during conservative cleanup.
+- Real Vim PTY tests cover the suggested basename in the current directory,
+  spaces/Unicode, `~/`, literal Ex metacharacters, cancellation with Esc/Ctrl+C,
+  failed writes and retries, existing-target refusal including unmodified/undone
+  drafts, explicit `:w`/`:saveas`/force, `:wq`/`:x`/`ZZ`, write hooks, custom write
+  commands, other buffers, notification failure/retry and internal-path refusal.
+- Complete outer-PTY application tests start with no filename, cancel the first
+  `:wq`, save to a chosen Unicode path, see the header change, and verify compiler
+  source/cwd, later saves and include-file rebuilds follow the adopted score.
+  Normal exit cleans the temporary original; SIGTERM retains the unnamed draft.
+- With Vim swap enabled, both direct SIGHUP and session shutdown preserve a real
+  draft swap. A second isolated traditional `vim -r` recovers the exact unsaved
+  Unicode text while the empty original and missing adoption marker stay intact.
+- Build service tests prove paused drafts do not compile, source/include watches
+  move after adoption, old-source events/results are rejected, generations remain
+  monotonic and failed retarget builds retain last good PDF/MIDI. The notification
+  reader is bounded, runs off the UI thread, joins on exit and supports retry.
 
 ## Pending native visual acceptance
 

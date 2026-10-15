@@ -30,6 +30,33 @@ make install
 lyra examples/playback.ly
 ```
 
+Run `lyra` on its own to start a new sketch. It creates an empty score with a
+musical name such as `starlit-cadenza.ly` or `copper-nocturne.ly` in its own
+private `/tmp/lyra-sketch-*` directory. The unique directory prevents collisions
+between sessions; Lyra never reuses another sketch.
+
+The first `:w` opens Vim's **Save score as:** prompt with the musical basename
+suggested. Enter a filename or path (Tab completes paths); Enter accepts the
+suggestion in Vim's current directory, and Ctrl+U clears it for a different name.
+Spaces, Unicode and `~/` work. Esc or
+Ctrl+C cancels, keeping the sketch open and modified. Vim may ask for Enter to
+dismiss its cancellation message. Failed writes also keep the sketch open.
+An existing destination is refused; use an explicit `:saveas! path` if you intend
+to replace it. You can also choose a new path directly with `:w path` or
+`:saveas path`, without the prompt.
+
+After the successful first save, the named file becomes the editor buffer and
+Lyra's build target. Subsequent `:w` saves normally, and compile-on-save, relative
+includes, PDF preview and playback follow that file. An unnamed sketch is not
+engraved before its first save. `:wq` also prompts; `:x`/`ZZ` prompt when there
+are changes to save, retaining Vim's normal no-write exit for an untouched buffer.
+
+Empty abandoned sketches and temporary originals saved elsewhere are cleaned up
+after normal exit. Interruptions retain the draft and any Vim swap files;
+ordinary Vim recovery rules still apply. Lyra also preserves a nonempty temporary
+score written directly by a plugin, and never recursively removes unknown files
+from a sketch directory. Choosing the temporary path itself preserves that file.
+
 Homebrew must already be installed and on PATH. `make install` runs `make deps`
 using the project's [Brewfile](Brewfile) (Go, Vim, LilyPond, Poppler, FluidSynth and mpv), builds
 Lyra, then installs it at `~/.local/bin/lyra`. Existing Homebrew formulae are reused
@@ -67,7 +94,8 @@ are resolved from Lyra's launch directory. All flags precede the score filename.
 Use `--pdfinfo /path/to/pdfinfo --pdftoppm /path/to/pdftoppm` for custom Poppler tools.
 
 Flags precede the filename; use `--` for a filename beginning with `-`. Paths with
-spaces work. A new source file is created only when you save it in Vim. The
+spaces work. A new explicitly named source is created when you save it in Vim;
+the no-argument sketch is created immediately in its private temporary directory. The
 `--vim` value is one executable path, not a shell command. Neovim is rejected,
 including when it is renamed or symlinked to `vim`.
 
@@ -159,6 +187,8 @@ coordinates are translated and encoded according to Vim's requested mouse mode.
 Lyra builds the **file passed on the command line**, initially and after saves.
 Opening another buffer in Vim does not change the build target. Save with `:w`
 before a manual rebuild; unsaved buffer contents are never compiled.
+For a no-argument sketch, the chosen first-save destination becomes this fixed
+target instead; compilation starts only after that successful save.
 
 An additive `BufWritePost` hook is loaded for this Vim session after normal
 startup. It notifies saves of the launch score without changing `.vimrc`, user

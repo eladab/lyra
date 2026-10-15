@@ -26,7 +26,12 @@ type Options struct {
 	DisableLilyPondSyntax bool
 	// SaveNotification enables an additive session-local BufWritePost hook.
 	SaveNotification string
-	Cols, Rows       int
+	// Draft prompts for a permanent filename on the launch buffer's first save.
+	// SourceNotification receives one JSON string containing the adopted absolute
+	// path, atomically replaced only after that first save succeeds.
+	Draft              bool
+	SourceNotification string
+	Cols, Rows         int
 	// Env is primarily useful to run isolated Vim integration tests. Nil
 	// inherits the user's environment, including HOME and VIMINIT.
 	Env []string
@@ -106,10 +111,20 @@ func Start(opts Options) (*Session, error) {
 			_ = os.RemoveAll(syntaxDir)
 		}
 	}()
-	if opts.SaveNotification != "" {
-		script := filepath.Join(filepath.Dir(opts.SaveNotification), "save.vim")
-		contents := fmt.Sprintf("augroup LyraSession%d\n  autocmd BufWritePost * if resolve(expand('<afile>:p')) ==# resolve($LYRA_SOURCE_FILE) | silent! call writefile([reltimestr(reltime())], $LYRA_SAVE_FILE) | endif\naugroup END\n", os.Getpid())
-		if err := os.WriteFile(script, []byte(contents), 0600); err != nil {
+	if opts.Draft && opts.SourceNotification == "" {
+		return nil, errors.New("draft Vim session requires a source notification path")
+	}
+	if opts.SaveNotification != "" || opts.Draft {
+		// Keep all session support files outside the user's Vim runtime. The
+		// temporary directory is also created when the syntax overlay is disabled.
+		if syntaxDir == "" {
+			syntaxDir, err = os.MkdirTemp("", "lyra-vim-")
+			if err != nil {
+				return nil, fmt.Errorf("create Vim session directory: %w", err)
+			}
+		}
+		script := filepath.Join(syntaxDir, "save.vim")
+		if err := os.WriteFile(script, saveRuntime, 0600); err != nil {
 			return nil, fmt.Errorf("create save notification hook: %w", err)
 		}
 		args = append(args, "-S", script)
@@ -117,8 +132,9 @@ func Start(opts Options) (*Session, error) {
 	args = append(args, "--", file)
 	cmd := exec.Command(path, args...)
 	cmd.Env = childEnvironment(opts.Env)
-	if opts.SaveNotification != "" {
-		cmd.Env = append(cmd.Env, "LYRA_SOURCE_FILE="+file, "LYRA_SAVE_FILE="+opts.SaveNotification)
+	if opts.SaveNotification != "" || opts.Draft {
+		cmd.Env = append(cmd.Env, "LYRA_SOURCE_FILE="+file, "LYRA_SAVE_FILE="+opts.SaveNotification,
+			"LYRA_DRAFT="+fmt.Sprint(opts.Draft), "LYRA_SOURCE_NOTIFICATION="+opts.SourceNotification)
 	}
 	master, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(opts.Cols), Rows: uint16(opts.Rows)})
 	if err != nil {

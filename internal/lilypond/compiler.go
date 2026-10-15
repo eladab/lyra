@@ -21,6 +21,9 @@ type Options struct {
 	Source, Executable string
 	IncludeDirs        []string
 	Timeout, Debounce  time.Duration
+	// WaitForSave keeps a temporary draft idle until Retarget adopts its first
+	// successful save. Its save notification and directory watcher still exist.
+	WaitForSave bool
 }
 
 type Result struct {

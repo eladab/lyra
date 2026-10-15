@@ -9,12 +9,12 @@ import (
 )
 
 func TestCLI(t *testing.T) {
-	for _, args := range [][]string{{"composition.ly"}, {"--vim", "/usr/bin/vim", "score with spaces.ly"}, {"--", "-score.ly"}, {"--lilypond", "/custom/lilypond", "--include", "parts", "--include", "shared", "--build-timeout", "30s", "score.ly"}} {
+	for _, args := range [][]string{nil, {"--preview-theme", "night"}, {"composition.ly"}, {"--vim", "/usr/bin/vim", "score with spaces.ly"}, {"--", "-score.ly"}, {"--lilypond", "/custom/lilypond", "--include", "parts", "--include", "shared", "--build-timeout", "30s", "score.ly"}} {
 		if _, err := parse(args, &bytes.Buffer{}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, args := range [][]string{nil, {"one.ly", "two.ly"}, {"--unknown"}, {"--build-timeout", "0", "score.ly"}, {"--build-timeout", "-1s", "score.ly"}, {"--preview-theme", "sepia", "score.ly"}, {"--vim-style", "unknown", "score.ly"}} {
+	for _, args := range [][]string{{"one.ly", "two.ly"}, {"--unknown"}, {"--build-timeout", "0", "score.ly"}, {"--build-timeout", "-1s", "score.ly"}, {"--preview-theme", "sepia", "score.ly"}, {"--vim-style", "unknown", "score.ly"}} {
 		if _, err := parse(args, &bytes.Buffer{}); err == nil {
 			t.Fatal(args)
 		}

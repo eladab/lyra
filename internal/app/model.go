@@ -34,6 +34,9 @@ type model struct {
 	router                    input.Router
 	layout                    layout
 	file                      string
+	untitled                  bool
+	adoption                  *adoptionWatch
+	draftErr                  string
 	focus                     input.Action
 	help                      bool
 	generation                uint64
@@ -66,7 +69,7 @@ type model struct {
 }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.scheduleFrame(), probeTimer())
+	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.waitAdoption(), m.scheduleFrame(), probeTimer())
 }
 
 func (m *model) readInput() tea.Cmd {
@@ -206,6 +209,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case draftSavedMsg:
+		if msg.err != nil {
+			m.draftErr = "First-save notification: " + msg.err.Error() + " · retry :w"
+			return m, m.waitAdoption()
+		}
+		m.draftErr = ""
+		if m.untitled {
+			m.file, m.untitled = msg.path, false
+			if m.builds != nil {
+				if err := m.builds.Retarget(msg.path); err != nil {
+					m.buildErr = "Adopt saved score: " + err.Error()
+				}
+			}
+		}
+		return m, nil
 	case probeTimeout:
 		if !m.graphics {
 			m.graphicsErr = "Terminal has no Kitty graphics support. Use Ghostty or Kitty."
@@ -370,6 +388,9 @@ func (m *model) View() tea.View {
 		}
 	}
 	footer := " Ctrl+\\: Space play · s stop · ,/. seek · a audio · e Vim · p PDF · t theme · [/] split · h help · q quit"
+	if m.untitled {
+		footer = " :w name this sketch · Ctrl+\\: e Vim · p PDF · h help · q quit"
+	}
 	if m.mouse {
 		footer += " · MOUSE ON"
 	}

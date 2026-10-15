@@ -5,7 +5,7 @@
 Lyra is a Go terminal-native LilyPond music workstation. It embeds traditional
 Vim as a genuine child process, rather than implementing Vim keybindings or
 depending on a Vim plugin. Initial target: macOS Apple Silicon, with Ghostty as
-the first graphics terminal to qualify. The CLI is `lyra composition.ly`.
+the first graphics terminal to qualify. The CLI is `lyra [composition.ly]`.
 
 - Use Bubble Tea and Lip Gloss for one keyboard-first integrated TUI.
 - Run traditional Vim in a PTY with a real VT terminal-emulation layer between
@@ -47,6 +47,13 @@ GeneralUser GS is the optional, checksum-pinned installed default.
 Appearance polish adds a session-local LilyPond syntax/palette overlay (opt out
 with `--vim-style user`), warm/night/original-paper PDF themes, and styled chrome
 without adding terminal rows. Never edit the user's Vim configuration for this.
+Running without a filename creates an empty private `/tmp/lyra-sketch-*` score
+with a musical basename. The draft buffer's first full save uses Vim's filename
+prompt and atomically publishes the successful destination. Adopt that path once
+as editor/header/build target, restart its directory/include watches, and keep
+build generations monotonic. No engraving occurs before adoption. Named launches
+still keep their launch score as target. Preserve temporary drafts/recovery on
+abnormal exit and never remove the adopted score or unknown sketch-directory files.
 
 The module name is `lyra`, a local module path, pending a chosen repository URL.
 Pinned dependencies are in `go.mod` and `go.sum`. Go 1.26.5 is the initial build
@@ -82,6 +89,7 @@ host terminal input -> cancelable raw reader -> prefix/paste router
 - `internal/watcher`: directory events, polling and literal include discovery.
 - `internal/preview`: bounded Poppler worker, document ownership and Kitty backend.
 - `internal/audio`: synthesis, bounded take ownership, private mpv control/lifecycle.
+- `internal/draft`: private empty sketch creation, musical naming and conservative cleanup.
 - `internal/testdata`: stable scores for integration tests; never depend on mutable
   user-edited examples or change those scores to make tests pass.
 - `examples/scale.ly`: a small score that includes both layout and MIDI blocks.

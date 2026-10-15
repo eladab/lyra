@@ -35,15 +35,15 @@ func parse(args []string, output io.Writer) (app.Options, error) {
 		return nil
 	})
 	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: lyra [options] composition.ly\n\nLyra: embedded Vim, LilyPond builds, PDF preview and MIDI playback.\nCtrl+\\ then Space plays/pauses; a opens audio; p previews; h opens help.\n:q or :wq exits through Vim.")
+		fmt.Fprintln(output, "Usage: lyra [options] [composition.ly]\n\nLyra: embedded Vim, LilyPond builds, PDF preview and MIDI playback.\nWithout a filename, start a private sketch and choose its name on first save.\nCtrl+\\ then Space plays/pauses; a opens audio; p previews; h opens help.\n:q or :wq exits through Vim.")
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {
 		return opts, err
 	}
-	if flags.NArg() != 1 {
+	if flags.NArg() > 1 {
 		flags.Usage()
-		return opts, fmt.Errorf("expected one LilyPond source file")
+		return opts, fmt.Errorf("expected at most one LilyPond source file")
 	}
 	opts.File = flags.Arg(0)
 	if opts.BuildTimeout <= 0 {

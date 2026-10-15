@@ -42,6 +42,9 @@ func (m *model) titleBar() string {
 	if file == "." || file == "" {
 		file = "untitled.ly"
 	}
+	if m.untitled {
+		file += " · sketch"
+	}
 	name := lipgloss.NewStyle().Background(chromeBG).Foreground(chromeText).Bold(true).Render("  " + file)
 	right := ""
 	if m.layout.width >= 88 {

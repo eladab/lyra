@@ -15,6 +15,7 @@ import (
 )
 
 type State struct {
+	Source           string
 	Generation       uint64
 	Status           string
 	Latest, LastGood *Result
@@ -25,12 +26,16 @@ type State struct {
 // Service serializes builds. Requests invalidate older work immediately, even
 // during debounce; only the desired generation may publish artifacts or errors.
 type Service struct {
-	Options
+	options                Options
 	Root, SaveNotification string
 	mu                     sync.Mutex
 	state                  State
 	wanted, immediate      bool
+	awaitingSave           bool
+	closed                 bool
+	sourceRevision         uint64
 	requests, changed      chan struct{}
+	watchRequests          chan struct{}
 	done, watchDone        chan struct{}
 	cancel                 context.CancelFunc
 	closeOnce              sync.Once
@@ -54,23 +59,67 @@ func NewService(parent context.Context, opts Options) (*Service, error) {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(parent)
-	s := &Service{Options: opts, Root: root, SaveNotification: filepath.Join(root, "vim-save"),
+	s := &Service{options: opts, Root: root, SaveNotification: filepath.Join(root, "vim-save"), awaitingSave: opts.WaitForSave,
 		requests: make(chan struct{}, 1), changed: make(chan struct{}, 1), done: make(chan struct{}), watchDone: make(chan struct{}), cancel: cancel,
-		state: State{Status: "Watching launch score"}}
+		watchRequests: make(chan struct{}, 1), state: State{Source: opts.Source, Status: "Watching launch score"}}
+	if opts.WaitForSave {
+		s.state.Status = "New sketch"
+	}
 	go s.run(ctx)
-	go func() {
-		defer close(s.watchDone)
-		watcher.Run(ctx, opts.Source, s.SaveNotification, opts.IncludeDirs, func(event watcher.Event) {
-			s.mu.Lock()
-			s.state.WatchWarning, s.state.WatchedFiles = event.Warning, event.Files
-			s.notify()
-			s.mu.Unlock()
-			if event.Changed {
-				s.Request(false)
-			}
-		})
-	}()
+	go s.watch(ctx)
 	return s, nil
+}
+
+// watch owns watcher replacement, so retargeting never waits for filesystem I/O
+// on the UI goroutine. Revision checks reject callbacks from the former score,
+// including callbacks already in flight when its watcher is canceled.
+func (s *Service) watch(ctx context.Context) {
+	defer close(s.watchDone)
+	var revision uint64
+	var stop context.CancelFunc
+	var done chan struct{}
+	defer func() {
+		if stop != nil {
+			stop()
+			<-done
+		}
+	}()
+	for {
+		s.mu.Lock()
+		source, desired := s.state.Source, s.sourceRevision
+		s.mu.Unlock()
+		if stop == nil || revision != desired {
+			if stop != nil {
+				stop()
+				<-done
+			}
+			watchCtx, cancel := context.WithCancel(ctx)
+			stop = cancel
+			done = make(chan struct{})
+			revision = desired
+			go func(revision uint64, done chan struct{}) {
+				defer close(done)
+				defer cancel()
+				watcher.Run(watchCtx, source, s.SaveNotification, s.options.IncludeDirs, func(event watcher.Event) {
+					s.mu.Lock()
+					defer s.mu.Unlock()
+					if s.closed || revision != s.sourceRevision {
+						return
+					}
+					s.state.WatchWarning, s.state.WatchedFiles = event.Warning, event.Files
+					if event.Changed {
+						s.requestLocked(false)
+					}
+					s.notify()
+				})
+			}(revision, done)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.watchRequests:
+		}
+	}
 }
 
 func (s *Service) notify() {
@@ -114,24 +163,69 @@ func (s *Service) OpenMIDI(generation uint64) (io.ReadCloser, error) {
 
 func (s *Service) Request(immediate bool) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.requestLocked(immediate)
+	}
+}
+
+func (s *Service) requestLocked(immediate bool) {
+	if s.awaitingSave {
+		return
+	}
 	s.state.Generation++
 	s.state.Status, s.state.Latest = "Queued", nil
 	s.wanted, s.immediate = true, immediate
 	s.notify()
-	s.mu.Unlock()
 	select {
 	case s.requests <- struct{}{}:
 	default:
 	}
 }
 
+// Retarget adopts the successful first save of a temporary draft. Named-file
+// launches keep their launch target; callers must only invoke this for that
+// explicit draft adoption. The target and generation change together, while
+// jobs and directory watches are canceled/replaced off the caller's goroutine.
+// LastGood remains available until the new target produces a valid result.
+func (s *Service) Retarget(path string) error {
+	if path == "" {
+		return fmt.Errorf("score path is empty")
+	}
+	source, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve score path: %w", err)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return os.ErrClosed
+	}
+	if source == s.state.Source && !s.awaitingSave {
+		return nil
+	}
+	s.awaitingSave = false
+	s.state.Source = source
+	s.state.WatchWarning, s.state.WatchedFiles = "", 0
+	s.sourceRevision++
+	s.requestLocked(true)
+	select {
+	case s.watchRequests <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
 func (s *Service) Cancel() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
 	s.state.Generation++
 	s.state.Status = "Canceled"
 	s.wanted = false
 	s.notify()
-	s.mu.Unlock()
 	select {
 	case s.requests <- struct{}{}:
 	default:
@@ -140,6 +234,9 @@ func (s *Service) Cancel() {
 
 func (s *Service) Close() {
 	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		s.mu.Unlock()
 		s.cancel()
 		<-s.done
 		<-s.watchDone
@@ -184,7 +281,7 @@ func (s *Service) run(ctx context.Context) {
 			due, ready = nil, false
 			scheduled = generation
 			if wanted {
-				delay := s.Debounce
+				delay := s.options.Debounce
 				if delay <= 0 {
 					delay = 200 * time.Millisecond
 				}
@@ -226,6 +323,8 @@ func (s *Service) run(ctx context.Context) {
 			s.mu.Lock()
 			generation := scheduled
 			wanted := s.wanted && generation == s.state.Generation
+			opts := s.options
+			opts.Source = s.state.Source
 			if wanted {
 				s.state.Status = "Building"
 				s.notify()
@@ -239,7 +338,7 @@ func (s *Service) run(ctx context.Context) {
 				running = true
 				go func() {
 					defer cancel()
-					complete <- compile(buildCtx, s.Options, s.Root, generation)
+					complete <- compile(buildCtx, opts, s.Root, generation)
 				}()
 			}
 		}

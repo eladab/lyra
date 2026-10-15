@@ -9,12 +9,14 @@ import (
 	"math/rand/v2"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
 	"lyra/internal/audio"
+	"lyra/internal/draft"
 	"lyra/internal/editor"
 	"lyra/internal/input"
 	"lyra/internal/lilypond"
@@ -39,14 +41,62 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 	if err != nil {
 		return fmt.Errorf("read terminal size: %w", err)
 	}
+	untitled := opts.File == ""
+	var session *editor.Session
+	var adoption *adoptionWatch
+	sourceNotification := ""
+	if untitled {
+		sketch, err := draft.Create()
+		if err != nil {
+			return err
+		}
+		opts.File = sketch.Path
+		control, err := os.MkdirTemp("", "lyra-sketch-control-")
+		if err != nil {
+			_ = sketch.Discard()
+			return fmt.Errorf("create first-save notification directory: %w", err)
+		}
+		sourceNotification = filepath.Join(control, "saved-source.json")
+		// This defer runs after the editor has been reaped. A crash or external
+		// termination retains the sketch and its swap files for Vim recovery.
+		defer func() {
+			destination, _ := readAdoption(sourceNotification)
+			discard := session == nil
+			if result == nil && ctx.Err() == nil {
+				if destination != "" {
+					discard = !sameFile(sketch.Path, destination)
+				} else if info, err := os.Stat(sketch.Path); err == nil {
+					// A plugin may have written the scratch directly without an
+					// adoption event. Preserve any actual on-disk music in that case.
+					discard = info.Size() == 0
+				}
+			} else if session != nil && destination == "" {
+				result = errors.Join(result, fmt.Errorf("temporary sketch retained at %s; Vim swap recovery may be available", sketch.Path))
+			}
+			if discard {
+				_ = sketch.Discard()
+			}
+			// Remove only our notification files; a deliberately chosen score in
+			// this directory must survive too.
+			if destination != sourceNotification {
+				_ = os.Remove(sourceNotification)
+			}
+			if destination != sourceNotification+".tmp" {
+				_ = os.Remove(sourceNotification + ".tmp")
+			}
+			_ = os.Remove(control)
+		}()
+		adoption = watchAdoption(ctx, sourceNotification)
+		defer adoption.Close()
+	}
 	l := measure(width, height)
-	builds, buildErr := lilypond.NewService(ctx, lilypond.Options{Source: opts.File, Executable: opts.LilyPond, IncludeDirs: opts.IncludeDirs, Timeout: opts.BuildTimeout})
+	builds, buildErr := lilypond.NewService(ctx, lilypond.Options{Source: opts.File, Executable: opts.LilyPond, IncludeDirs: opts.IncludeDirs, Timeout: opts.BuildTimeout, WaitForSave: untitled})
 	notification := ""
 	if builds != nil {
 		defer builds.Close()
 		notification = builds.SaveNotification
 	}
-	session, err := editor.Start(editor.Options{Vim: opts.Vim, File: opts.File, Cols: l.editorCols, Rows: l.editorRows, SaveNotification: notification, DisableLilyPondSyntax: opts.DisableLilyPondSyntax})
+	session, err = editor.Start(editor.Options{Vim: opts.Vim, File: opts.File, Cols: l.editorCols, Rows: l.editorRows, SaveNotification: notification, DisableLilyPondSyntax: opts.DisableLilyPondSyntax, Draft: untitled, SourceNotification: sourceNotification})
 	if err != nil {
 		return err
 	}
@@ -69,7 +119,7 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 	}
 	id := rand.Uint32() | 0x1000000
 	frames := newFrameRenderer(preview.Kitty{ID: id})
-	m := &model{session: session, reader: reader, layout: l, file: opts.File, focus: input.Editor, builds: builds, previews: previews, frames: frames, imageID: id, split: .5, zoom: 1, page: 1, previewTheme: opts.PreviewTheme}
+	m := &model{session: session, reader: reader, layout: l, file: opts.File, untitled: untitled, adoption: adoption, focus: input.Editor, builds: builds, previews: previews, frames: frames, imageID: id, split: .5, zoom: 1, page: 1, previewTheme: opts.PreviewTheme}
 	playback, audioErr := audio.NewService(ctx, audio.Options{FluidSynth: opts.FluidSynth, MPV: opts.MPV, SoundFont: opts.SoundFont, Output: opts.AudioOutput})
 	if playback != nil {
 		defer playback.Close()

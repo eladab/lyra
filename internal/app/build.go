@@ -40,6 +40,12 @@ func (m *model) buildLines(width int) []string {
 		status = "Starting"
 	}
 	lines := []string{"LilyPond builds", "", "Target: " + m.file, "Launch score stays the target.", "", fmt.Sprintf("%s · generation %d", status, s.Generation)}
+	if m.untitled {
+		lines[3] = "New sketch: :w to choose its filename."
+	}
+	if m.draftErr != "" {
+		lines = append(lines, m.draftErr)
+	}
 	if m.buildErr != "" {
 		lines = append(lines, "Build service unavailable:", m.buildErr)
 	}
