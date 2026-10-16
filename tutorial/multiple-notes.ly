@@ -14,3 +14,12 @@
 	\new Staff { \clef bass c4 }
 >>
 
+<<
+	\new Staff { \clef treble \key d \major \time 3/4 c''4 }
+	\new Staff { \clef bass c4 }
+>>
+
+\new PianoStaff <<
+	\new Staff \relative { \time 2/4 c''4 e | g g, | }
+	\new Staff \relative { \clef bass c4 c' | e c | }
+>>
