@@ -85,6 +85,9 @@ func (m *model) paneBars() string {
 	if m.help {
 		rightTitle, rightDetail = "HELP", "KEYS"
 	}
+	if m.docs.visible {
+		rightTitle, rightDetail = "DOCS", "LILYPOND"
+	}
 	l := m.layout
 	if l.previewCols > 0 {
 		return paneBar("VIM", "LILYPOND", l.editorCols, m.focus == input.Editor) +

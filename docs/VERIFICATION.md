@@ -227,6 +227,49 @@ score for trying the transport. Tests never repair or replace user scores.
   form. Vim never starts, no new score appears, reader shutdown completes, and
   the helper verifies original input/output terminal settings are restored.
 
+- The filename step now validates the destination without creating it, then
+  offers the blank option and all 22 template topics from the official 2.26
+  Learning Manual. Search tests cover combined category/topic names, reordered
+  words, abbreviations, instrument aliases, spelling errors and every full label.
+- Template confirmation tests cover exact initialized content, a genuinely empty
+  blank score, Esc back to the filename, no-match Enter, stale validation, query
+  editing, cancellation and a destination created by another writer during search.
+- Extended outer-PTY tests select blank and string-quartet starters, confirm that
+  no file or Vim process exists before selection, verify the full template is
+  present on disk and in the initial real Vim buffer, and preserve normal first
+  save/build/exit semantics. The template case starts at 64×20; frame tests cover
+  the picker at tiny/narrow/wide sizes. Ctrl+C/SIGTERM from template selection
+  create nothing and restore the outer terminal.
+- `LYRA_TEST_LILYPOND=/opt/homebrew/bin/lilypond go test ./internal/scoretemplate`
+  engraved all 22 templates successfully with real LilyPond 2.26, each in an
+  isolated temporary directory. The importer, template excerpts, source metadata
+  and GNU FDL license are retained under `scripts` and `internal/scoretemplate`.
+
+## Integrated documentation evidence
+
+- Real traditional Vim tests verify native K lookup in `.ly` and `.ily` buffers,
+  explicit multiword `:LyraDocs` queries, unchanged custom K mappings and custom
+  global/buffer keyword programs, the opt-out, and unaffected other filetypes.
+- Parser/search tests cover Texinfo section anchors and command-index terms,
+  fuzzy titles, exact-command ranking, full text, indented code, source links,
+  control filtering and removal of website menus/navigation/scripts/footer.
+- Deterministic HTTP-transport tests verify the initial two-manual index/cache,
+  subsequent offline reads, failed refresh retaining the cache, corrupted-cache
+  recovery, version validation, cancellation and refusal of HTTP/error pages.
+- `LYRA_TEST_DOCS_HTML=/tmp/lyra-notation.html` and
+  `LYRA_TEST_DOCS_LEARNING_HTML=/tmp/lyra-learning.html` enable integration against
+  downloaded official 2.26 big-HTML manuals. These exercise parsing, ranking,
+  two-manual loading and the offline cache without a live test dependency.
+- Outer-PTY tests run the complete application with real Vim and seeded local
+  documentation, exercise K and fuzzy selection, observe the section in the
+  host VT screen and verify the saved score remains unchanged. Model/frame tests
+  cover narrow/tiny layouts, PDF deletion/restoration, retained viewport, Unicode,
+  chunked navigation/paste, refresh failures and notification-reader shutdown.
+- `go vet ./...`, `go test -race ./...` and `go build -o bin/lyra ./cmd/lyra` pass.
+  Documentation renders text/code; manual music images and in-pane link
+  navigation remain future work. Native Ghostty/Kitty visual qualification is
+  still the separate acceptance gate below.
+
 ## Pending native visual acceptance
 
 The computer-use tool explicitly rejected access to `com.mitchellh.ghostty` for

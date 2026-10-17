@@ -73,7 +73,7 @@ func (f *frameRenderer) frame(m *model) string {
 	}
 	cols, rows := m.paneWidth(), max(1, l.editorRows-1)
 	payload := ""
-	if m.graphics && !m.help && !m.diagnostics && !m.audioPane && l.height >= 5 && (l.previewCols > 0 || m.focus == input.Preview) {
+	if m.graphics && !m.help && !m.diagnostics && !m.audioPane && !m.docs.visible && l.height >= 5 && (l.previewCols > 0 || m.focus == input.Preview) {
 		payload = m.previewState.Payload
 	}
 	imageChanged := changed || payload != f.image || x != f.x || cols != f.cols || rows != f.rows

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"lyra/internal/app"
+	documentation "lyra/internal/docs"
 	"lyra/internal/preview"
 )
 
@@ -29,6 +30,8 @@ func parse(args []string, output io.Writer) (app.Options, error) {
 	flags.StringVar(&opts.AudioOutput, "audio-output", "", "mpv audio output driver (default: platform default; e.g. coreaudio)")
 	flags.StringVar(&previewTheme, "preview-theme", "warm", "PDF appearance: warm, night, or paper")
 	flags.StringVar(&vimStyle, "vim-style", "lyra", "LilyPond syntax palette: lyra or user (keep existing Vim syntax)")
+	flags.StringVar(&opts.DocsVersion, "docs-version", documentation.DefaultVersion, "LilyPond documentation series to cache (e.g. 2.26 or 2.24)")
+	flags.BoolVar(&opts.DisableDocsKey, "no-docs-key", false, "keep Vim's default K keyword program; :LyraDocs and prefix D still work")
 	flags.DurationVar(&opts.BuildTimeout, "build-timeout", 2*time.Minute, "maximum duration of one LilyPond build")
 	flags.Func("include", "additional LilyPond include directory (repeatable)", func(dir string) error {
 		opts.IncludeDirs = append(opts.IncludeDirs, dir)
@@ -48,6 +51,9 @@ func parse(args []string, output io.Writer) (app.Options, error) {
 	opts.File = flags.Arg(0)
 	if opts.BuildTimeout <= 0 {
 		return opts, fmt.Errorf("--build-timeout must be positive")
+	}
+	if !documentation.ValidVersion(opts.DocsVersion) {
+		return opts, fmt.Errorf("--docs-version must be a LilyPond series such as 2.26")
 	}
 	theme, err := preview.ParseTheme(previewTheme)
 	if err != nil {

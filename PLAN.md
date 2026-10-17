@@ -145,10 +145,21 @@ Implemented appearance groundwork: a session-local LilyPond palette with
 `--vim-style user` opt-out; warm/night/original PDF themes with `--preview-theme`
 and prefix/direct PDF `t`; styled header/pane bars with unchanged row geometry.
 Configuration persistence and native terminal qualification remain below.
+Integrated documentation now adds lazy background downloads of the official
+English Notation/Learning HTML manuals, a versioned offline cache, command-index
+lookup through Vim's native K/keywordprg and a fuzzy topic picker under prefix D.
+Sections appear in the existing adjustable side pane (focused view when narrow).
+User K mappings/keyword programs are preserved; text/code render locally while
+manual example images remain labels/source links. Native Vim, real downloaded
+HTML, offline/failed-refresh and outer-TUI paths are covered by tests.
 No-argument sessions show a startup chooser with filesystem browsing and path
 completion for opening `.ly` scores or choosing a new score's location. New
-files get editable musical name suggestions and exclusive creation; Vim starts
-with the selected permanent path and saves normally from the first write.
+files get editable musical name suggestions, followed by an offline fuzzy picker
+of 22 official Learning Manual templates or a blank score. Search combines section
+and subsection names with instrument aliases, reordered words and spelling
+tolerance. Only confirming the template/blank option creates the destination
+exclusively; Vim starts with the selected content at the permanent path and saves
+normally from the first write. All 22 starters engrave with real LilyPond 2.26.
 
 - Add versioned TOML config for executables, theme, compile-on-save, debounce,
   renderer preference, SoundFont, audio backend and configurable prefix/bindings.
@@ -158,6 +169,8 @@ with the selected permanent path and saves normally from the first write.
   Consider reopening the last score with consent.
 - Add diagnostics navigation to Vim without shell interpolation. Consider inverse
   source links, include navigation and stable view positions after rebuild.
+- Extend documentation with in-pane cross-reference navigation, rendered musical
+  examples and automatic selection of the installed LilyPond documentation series.
 - Implement mouse only with an emulator mode bridge, pane hit testing and translated
   coordinates. Preserve shell escape, plugin subprocess and job-control behavior
   under an explicit tested policy.

@@ -13,6 +13,8 @@ import (
 
 func (m *launcher) listRows() int { return max(1, min(12, m.height-15)) }
 
+func (m *launcher) templateRows() int { return max(1, min(10, m.height-16)) }
+
 func launchText(text string, width int) string {
 	return fit(ansi.Truncate(cleanLabel(text), max(1, width), "…"), max(1, width))
 }
@@ -102,8 +104,8 @@ func (m *launcher) View() tea.View {
 			status = fmt.Sprintf("%d/%d · . toggles hidden files · ~ home", m.selected+1, len(m.entries))
 		}
 	case launchCreate, launchPath:
-		title, help := "Create a score", "Choose its location now; :w will save normally."
-		footer = "Enter create · Tab complete · Ctrl+U clear · Esc back"
+		title, help := "Create a score", "Next, choose a template or start with a blank score."
+		footer = "Enter continue · Tab complete · Ctrl+U clear · Esc back"
 		if m.page == launchPath {
 			title, help = "Open a path", "Enter a folder or an existing .ly score."
 			footer = "Enter open · Tab complete · Ctrl+U clear · Esc back"
@@ -112,10 +114,32 @@ func (m *launcher) View() tea.View {
 			}
 		}
 		rows = append(rows, text.Bold(true).Render(launchText(title, inner)), dim.Render(launchText(help, inner)), "", dim.Render(launchText("File location", inner)), m.fieldLine(inner), "", dim.Render(launchText("Relative paths start in: "+m.directory, inner)))
+	case launchTemplate:
+		footer = "↑/↓ select · Enter create · Ctrl+U clear · Esc filename"
+		rows = append(rows, text.Bold(true).Render(launchText("Choose a template or start blank", inner)), dim.Render(launchText(m.destination, inner)), dim.Render(launchText("Search by topic, instrument or ensemble", inner)), m.fieldLine(inner), "")
+		count := m.templateRows()
+		offset := max(0, min(m.selected-count/2, len(m.templates)-count))
+		for row := range count {
+			label, style := "", text
+			index := offset + row
+			if index < len(m.templates) {
+				marker := "  "
+				if index == m.selected {
+					marker, style = "› ", text.Background(activePaneBG).Foreground(chromeFocus).Bold(true)
+				}
+				label = marker + m.templates[index].Label()
+			} else if row == 0 {
+				label = "No matches · try fewer words or Ctrl+U for blank"
+			}
+			rows = append(rows, style.Render(launchText(label, inner)))
+		}
+		status = fmt.Sprintf("%d choices · LilyPond 2.26 · available offline", len(m.templates))
 	}
 	if m.busy {
 		status = "Opening score…"
 		if m.page == launchCreate {
+			status = "Checking destination…"
+		} else if m.page == launchTemplate {
 			status = "Creating score…"
 		}
 	}

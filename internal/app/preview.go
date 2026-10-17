@@ -219,6 +219,16 @@ func (m *model) mouseEvent(e input.Event) error {
 	}
 	if inPreview {
 		m.focus = input.Preview
+		if m.docs.visible {
+			if e.Code&64 != 0 {
+				if e.Code&1 == 0 {
+					m.docs.move(-3)
+				} else {
+					m.docs.move(3)
+				}
+			}
+			return nil
+		}
 		if m.audioPane {
 			if e.Code&64 != 0 {
 				key := []string{"+", "-", ",", "."}[e.Code&3]

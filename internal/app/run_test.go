@@ -161,6 +161,7 @@ func TestFullTUI(t *testing.T) {
 	for _, signalExit := range []bool{false, true} {
 		t.Run(fmt.Sprint("signal=", signalExit), func(t *testing.T) {
 			dir := t.TempDir()
+			seedDocsCache(t, dir)
 			file := filepath.Join(dir, "composition.ly")
 			compiler := filepath.Join(dir, "lilypond")
 			compilerScript := `#!/bin/sh
@@ -193,7 +194,7 @@ echo run >> "$source.builds"
 					cmd.Env = append(cmd.Env, item)
 				}
 			}
-			cmd.Env = append(cmd.Env, "HOME="+dir, "TERM=xterm-256color", "TERM_PROGRAM=ghostty", "COLORTERM=truecolor", "LYRA_TEST_PROCESS=1", "LYRA_TEST_FILE="+file, "LYRA_TEST_COMPILER="+compiler)
+			cmd.Env = append(cmd.Env, "HOME="+dir, "XDG_CACHE_HOME="+filepath.Join(dir, "cache"), "TERM=xterm-256color", "TERM_PROGRAM=ghostty", "COLORTERM=truecolor", "LYRA_TEST_PROCESS=1", "LYRA_TEST_FILE="+file, "LYRA_TEST_COMPILER="+compiler)
 			cmd.Env = append(cmd.Env, "LYRA_TEST_PDF="+previewFixture)
 			cmd.Env = append(cmd.Env, "LYRA_TEST_MIDI="+midiFixture)
 			if signalExit {
@@ -318,6 +319,19 @@ echo run >> "$source.builds"
 				write("\x1cp\x1ce")
 			}
 			beforeBuild, _ := os.ReadFile(file + ".builds")
+			// Exercise the real Vim K -> private notification -> local index ->
+			// Bubble Tea docs pane path, without a live network dependency.
+			hasScreen := func(want string) bool {
+				mu.Lock()
+				data := bytes.Clone(output.Bytes())
+				mu.Unlock()
+				return strings.Contains(strings.Join(hostScreen(t, data, 120, 32), "\n"), want)
+			}
+			write("gg0K")
+			waitFor(t, "K opens local documentation inside Lyra", func() bool { return hasScreen("Lookup topic displayed inside Lyra.") })
+			write("\x1cDtplts\r")
+			waitFor(t, "fuzzy topic search renders its section", func() bool { return hasScreen("Group notes in tuplets.") })
+			write("jjbg\x1ce:w\r")
 			write("\x1cb")
 			waitFor(t, "manual prefix rebuild", func() bool { b, _ := os.ReadFile(file + ".builds"); return len(b) > len(beforeBuild) })
 			// Bytes typed in the preview must never mutate the Vim buffer.

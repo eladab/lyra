@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"lyra/internal/scoretemplate"
 )
 
 func runLaunchCommand(m *launcher, cmd tea.Cmd) {
@@ -177,7 +178,7 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 	m := newLauncher(context.Background(), nil, "/scores/雨\x1b[2J/"+strings.Repeat("a long folder name/", 8), 100, 32)
 	for _, size := range [][2]int{{1, 1}, {20, 8}, {28, 18}, {60, 24}, {120, 40}} {
 		m.width, m.height = size[0], size[1]
-		for _, page := range []launchPage{launchMenu, launchBrowse, launchCreate, launchPath} {
+		for _, page := range []launchPage{launchMenu, launchBrowse, launchCreate, launchPath, launchTemplate} {
 			m.page = page
 			m.field, m.cursor = []rune(m.directory), len([]rune(m.directory))
 			lines := strings.Split(m.View().Content, "\n")
@@ -205,6 +206,8 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 					expected = 18
 				} else if page == launchBrowse {
 					expected = 12 + m.listRows()
+				} else if page == launchTemplate {
+					expected = 14 + m.templateRows()
 				}
 				if top < 0 || bottom-top+1 != expected {
 					t.Fatal("dialog content wrapped or its frame was clipped", size, page, top, bottom)
@@ -217,5 +220,104 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestNewScoreTemplateConfirmationAndBackNavigation(t *testing.T) {
+	for _, query := range []string{"", "quartet string"} {
+		t.Run(query, func(t *testing.T) {
+			dir := t.TempDir()
+			m := newLauncher(context.Background(), nil, dir, 100, 32)
+			m.creating = true
+			m.pathField(launchCreate, "a new score 雨")
+			runLaunchCommand(m, m.key(launchKey("\r")))
+			path := filepath.Join(dir, "a new score 雨.ly")
+			if m.page != launchTemplate || m.destination != path || m.chosen != "" {
+				t.Fatal("filename confirmation did not open the template step")
+			}
+			if _, err := os.Stat(path); !os.IsNotExist(err) {
+				t.Fatal("file was created before template confirmation")
+			}
+			m.insert("this query has no match xyz")
+			runLaunchCommand(m, m.key(launchKey("\r")))
+			if m.chosen != "" || len(m.templates) != 0 {
+				t.Fatal("unmatched template query created a score")
+			}
+			runLaunchCommand(m, m.key(launchKey("\x1b")))
+			if m.page != launchCreate || string(m.field) != path {
+				t.Fatal("Esc did not restore the chosen filename")
+			}
+			runLaunchCommand(m, m.key(launchKey("\r")))
+			m.insert(query)
+			want := scoretemplate.Search(query)[0].Code
+			runLaunchCommand(m, m.key(launchKey("\r")))
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != want || m.chosen != path {
+				t.Fatal("new file did not contain the selected template", err)
+			}
+		})
+	}
+}
+
+func TestTemplateDestinationRaceAndStaleValidation(t *testing.T) {
+	dir := t.TempDir()
+	m := newLauncher(context.Background(), nil, dir, 100, 32)
+	m.creating = true
+	m.pathField(launchCreate, "score.ly")
+	stale := m.choose("score.ly", true)
+	m.pathField(launchCreate, "changed.ly")
+	runLaunchCommand(m, stale)
+	if m.page != launchCreate || m.destination != "" {
+		t.Fatal("stale path validation changed the template destination")
+	}
+	m.busy = false
+	runLaunchCommand(m, m.choose("score.ly", true))
+	path := filepath.Join(dir, "score.ly")
+	if err := os.WriteFile(path, []byte("user score"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m.insert("single staff notes only")
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	data, _ := os.ReadFile(path)
+	if string(data) != "user score" || m.chosen != "" || !strings.Contains(m.err, "already exists") || m.busy {
+		t.Fatal("confirmation replaced a destination created while searching")
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	m.ctx = ctx
+	cancel()
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("cancelled template creation wrote a file")
+	}
+}
+
+func TestTemplateSearchEditingAndSelection(t *testing.T) {
+	m := newLauncher(context.Background(), nil, t.TempDir(), 100, 32)
+	m.pathField(launchTemplate, "")
+	m.insert("piano")
+	first := m.templates[0].ID
+	m.fieldKey(launchKey("\x1b[B"))
+	if m.selected != 1 || m.templates[m.selected].ID == first {
+		t.Fatal("template arrow selection failed")
+	}
+	m.fieldKey(launchKey("\x10"))
+	if m.selected != 0 {
+		t.Fatal("Ctrl+P selection failed")
+	}
+	m.fieldKey(launchKey("\x15"))
+	if len(m.field) != 0 || m.templates[0].ID != "blank" {
+		t.Fatal("clearing search did not restore the blank option")
+	}
+	m.insert("雨")
+	m.fieldKey(launchKey("\x7f"))
+	if len(m.field) != 0 || len(m.templates) != 23 {
+		t.Fatal("Unicode search/backspace was corrupted")
+	}
+	m.insert("q\n\x1b[2J")
+	if m.err == "" || len(m.field) != 0 {
+		t.Fatal("control-bearing paste entered the template query")
 	}
 }

@@ -49,7 +49,8 @@ with `--vim-style user`), warm/night/original-paper PDF themes, and styled chrom
 without adding terminal rows. Never edit the user's Vim configuration for this.
 Running without a filename shows a startup chooser to browse existing `.ly`
 scores or choose a folder and filename for a new score. Suggest a musical name,
-but create nothing until the user confirms the destination. New files must be
+then offer a fuzzy template picker with a blank option after the filename step.
+Create nothing until the user confirms the template or blank choice. New files must be
 created exclusively without replacing existing paths. The chosen score is a
 permanent file and the fixed editor/header/build target; Vim saves it normally
 from the first `:w`. Named launches bypass the chooser. The chooser must join
@@ -90,6 +91,11 @@ host terminal input -> cancelable raw reader -> prefix/paste router
 - `internal/preview`: bounded Poppler worker, document ownership and Kitty backend.
 - `internal/audio`: synthesis, bounded take ownership, private mpv control/lifecycle.
 - `internal/draft`: musical name suggestions and private temporary score utilities.
+- `internal/docs`: official HTML manual parsing, command/topic search and versioned
+  offline cache. Downloads/indexing run off the UI thread and only on demand.
+- `internal/scoretemplate`: bundled official Learning Manual starters and fuzzy
+  search over section/subsection names and instrument/ensemble aliases. Template
+  selection is offline; only final confirmation creates the destination.
 - `internal/testdata`: stable scores for integration tests; never depend on mutable
   user-edited examples or change those scores to make tests pass.
 - `examples/scale.ly`: a small score that includes both layout and MIDI blocks.
@@ -149,6 +155,14 @@ negative dimensions. Translate mouse coordinates before any future mouse support
 Phase 5 must make the prefix and application bindings configurable. Future compile,
 transport, page and zoom controls belong under the prefix or in preview focus;
 do not silently reserve F5–F8 or Ctrl+Q from existing user mappings.
+
+Prefix `D` opens fuzzy documentation search. Vim's native `K` uses a session-local
+buffer `keywordprg` for `.ly`/`.ily` files when the user has the default keyword
+program; existing K mappings and custom keyword programs take precedence.
+`:LyraDocs [term]` is explicit lookup; `--no-docs-key` opts out of the keyword hook.
+Docs use the side pane with the same narrow-layout policy and preserve the PDF
+viewport. Search uses arrows/Enter; reading uses j/k, paging and g/G, `/` or b to
+return to results, q/Esc to focus Vim, and Ctrl+R (or reading R) to refresh.
 
 ## Process, data and configuration rules
 

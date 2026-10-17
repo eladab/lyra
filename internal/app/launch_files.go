@@ -118,30 +118,8 @@ func chooseScorePath(ctx context.Context, value, directory string, create bool) 
 		return "", false, err
 	}
 	if create {
-		if strings.HasSuffix(value, string(filepath.Separator)) {
-			return "", false, errors.New("Include a filename after the folder path")
-		}
-		if filepath.Ext(path) == "" {
-			path += ".ly"
-		}
-		if !strings.EqualFold(filepath.Ext(path), ".ly") {
-			return "", false, errors.New("A LilyPond score needs a .ly extension")
-		}
-		info, err := os.Stat(filepath.Dir(path))
-		if err != nil || !info.IsDir() {
-			return "", false, errors.New("The destination folder does not exist or cannot be opened")
-		}
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-		if errors.Is(err, os.ErrExist) {
-			return "", false, errors.New("That file already exists; choose another name or open it")
-		}
-		if err != nil {
-			return "", false, fmt.Errorf("Create score: %w", err)
-		}
-		if err := file.Close(); err != nil {
-			return "", false, err
-		}
-		return path, false, nil
+		path, err := createScore(ctx, value, directory, "")
+		return path, false, err
 	}
 	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
@@ -159,6 +137,66 @@ func chooseScorePath(ctx context.Context, value, directory string, create bool) 
 		return "", false, errors.New("Choose a regular LilyPond .ly file")
 	}
 	return path, false, nil
+}
+
+// Validating a destination does not create or reserve anything. Creation is
+// deferred until the user confirms a template (or the blank option).
+func scoreDestination(ctx context.Context, value, directory string) (string, error) {
+	path, err := scorePath(value, directory)
+	if err != nil {
+		return "", err
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if strings.HasSuffix(value, string(filepath.Separator)) {
+		return "", errors.New("Include a filename after the folder path")
+	}
+	if filepath.Ext(path) == "" {
+		path += ".ly"
+	}
+	if !strings.EqualFold(filepath.Ext(path), ".ly") {
+		return "", errors.New("A LilyPond score needs a .ly extension")
+	}
+	info, err := os.Stat(filepath.Dir(path))
+	if err != nil || !info.IsDir() {
+		return "", errors.New("The destination folder does not exist or cannot be opened")
+	}
+	if _, err := os.Lstat(path); err == nil {
+		return "", errors.New("That file already exists; choose another name or open it")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("Check destination: %w", err)
+	}
+	return path, nil
+}
+
+func createScore(ctx context.Context, value, directory, content string) (string, error) {
+	path, err := scoreDestination(ctx, value, directory)
+	if err != nil {
+		return "", err
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	if errors.Is(err, os.ErrExist) {
+		return "", errors.New("That file already exists; choose another name or open it")
+	}
+	if err != nil {
+		return "", fmt.Errorf("Create score: %w", err)
+	}
+	owned, statErr := file.Stat()
+	err = ctx.Err()
+	if err == nil {
+		_, err = io.WriteString(file, content)
+	}
+	err = errors.Join(statErr, err, file.Close())
+	if err != nil {
+		// Remove only our failed, newly created file. Preserve a replacement if
+		// another process changed the path while the write was in progress.
+		if now, e := os.Lstat(path); e == nil && owned != nil && os.SameFile(owned, now) {
+			_ = os.Remove(path)
+		}
+		return "", fmt.Errorf("Write new score: %w", err)
+	}
+	return path, nil
 }
 
 func completeScorePath(ctx context.Context, text, directory string) (string, string, error) {

@@ -9,12 +9,14 @@ import (
 	"math/rand/v2"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
 	"lyra/internal/audio"
+	documentation "lyra/internal/docs"
 	"lyra/internal/editor"
 	"lyra/internal/input"
 	"lyra/internal/lilypond"
@@ -29,6 +31,8 @@ type Options struct {
 	FluidSynth, MPV, SoundFont, AudioOutput string
 	PreviewTheme                            preview.Theme
 	DisableLilyPondSyntax                   bool
+	DocsVersion                             string
+	DisableDocsKey                          bool
 }
 
 func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
@@ -53,7 +57,13 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 		defer builds.Close()
 		notification = builds.SaveNotification
 	}
-	session, err := editor.Start(editor.Options{Vim: opts.Vim, File: opts.File, Cols: l.editorCols, Rows: l.editorRows, SaveNotification: notification, DisableLilyPondSyntax: opts.DisableLilyPondSyntax})
+	docsDir, err := os.MkdirTemp("", "lyra-docs-")
+	if err != nil {
+		return fmt.Errorf("create documentation bridge: %w", err)
+	}
+	defer os.RemoveAll(docsDir)
+	docsNotification := filepath.Join(docsDir, "lookup.json")
+	session, err := editor.Start(editor.Options{Vim: opts.Vim, File: opts.File, Cols: l.editorCols, Rows: l.editorRows, SaveNotification: notification, DisableLilyPondSyntax: opts.DisableLilyPondSyntax, DocsNotification: docsNotification, DisableDocsKey: opts.DisableDocsKey})
 	if err != nil {
 		return err
 	}
@@ -77,6 +87,9 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 	id := rand.Uint32() | 0x1000000
 	frames := newFrameRenderer(preview.Kitty{ID: id})
 	m := &model{session: session, reader: reader, layout: l, file: opts.File, focus: input.Editor, builds: builds, previews: previews, frames: frames, imageID: id, split: .5, zoom: 1, page: 1, previewTheme: opts.PreviewTheme}
+	docsCtx, stopDocs := context.WithCancel(ctx)
+	defer stopDocs()
+	m.docs = docsPane{ctx: docsCtx, loader: documentation.Loader{Version: opts.DocsVersion}, notification: docsNotification, section: -1}
 	playback, audioErr := audio.NewService(ctx, audio.Options{FluidSynth: opts.FluidSynth, MPV: opts.MPV, SoundFont: opts.SoundFont, Output: opts.AudioOutput})
 	if playback != nil {
 		defer playback.Close()

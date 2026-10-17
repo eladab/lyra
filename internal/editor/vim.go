@@ -26,6 +26,9 @@ type Options struct {
 	DisableLilyPondSyntax bool
 	// SaveNotification enables an additive session-local BufWritePost hook.
 	SaveNotification string
+	// DocsNotification enables session-local :LyraDocs and normal Vim K lookup.
+	DocsNotification string
+	DisableDocsKey   bool
 	// Draft prompts for a permanent filename on the launch buffer's first save.
 	// SourceNotification receives one JSON string containing the adopted absolute
 	// path, atomically replaced only after that first save succeeds.
@@ -114,7 +117,7 @@ func Start(opts Options) (*Session, error) {
 	if opts.Draft && opts.SourceNotification == "" {
 		return nil, errors.New("draft Vim session requires a source notification path")
 	}
-	if opts.SaveNotification != "" || opts.Draft {
+	if opts.SaveNotification != "" || opts.Draft || opts.DocsNotification != "" {
 		// Keep all session support files outside the user's Vim runtime. The
 		// temporary directory is also created when the syntax overlay is disabled.
 		if syntaxDir == "" {
@@ -123,15 +126,27 @@ func Start(opts Options) (*Session, error) {
 				return nil, fmt.Errorf("create Vim session directory: %w", err)
 			}
 		}
-		script := filepath.Join(syntaxDir, "save.vim")
-		if err := os.WriteFile(script, saveRuntime, 0600); err != nil {
-			return nil, fmt.Errorf("create save notification hook: %w", err)
+		if opts.SaveNotification != "" || opts.Draft {
+			script := filepath.Join(syntaxDir, "save.vim")
+			if err := os.WriteFile(script, saveRuntime, 0600); err != nil {
+				return nil, fmt.Errorf("create save notification hook: %w", err)
+			}
+			args = append(args, "-S", script)
 		}
-		args = append(args, "-S", script)
+		if opts.DocsNotification != "" {
+			script := filepath.Join(syntaxDir, "docs.vim")
+			if err := os.WriteFile(script, docsRuntime, 0600); err != nil {
+				return nil, fmt.Errorf("create documentation hook: %w", err)
+			}
+			args = append(args, "-S", script)
+		}
 	}
 	args = append(args, "--", file)
 	cmd := exec.Command(path, args...)
 	cmd.Env = childEnvironment(opts.Env)
+	if opts.DocsNotification != "" {
+		cmd.Env = append(cmd.Env, "LYRA_DOCS_FILE="+opts.DocsNotification, "LYRA_DOCS_KEY="+fmt.Sprint(!opts.DisableDocsKey))
+	}
 	if opts.SaveNotification != "" || opts.Draft {
 		cmd.Env = append(cmd.Env, "LYRA_SOURCE_FILE="+file, "LYRA_SAVE_FILE="+opts.SaveNotification,
 			"LYRA_DRAFT="+fmt.Sprint(opts.Draft), "LYRA_SOURCE_NOTIFICATION="+opts.SourceNotification)

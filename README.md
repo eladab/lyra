@@ -37,8 +37,25 @@ Run `lyra` without a filename to open a startup chooser:
   files, `~` goes home, and `/` lets you enter a path directly.
 - **Create a score** lets you browse to a folder, then press `n` to choose the
   filename and location. Lyra suggests a musical name such as `starlit-cadenza.ly`;
-  edit it or use Ctrl+U to enter a different path. Enter creates the empty score
-  and opens Vim. Existing files are refused, and `.ly` is added when omitted.
+  edit it or use Ctrl+U to enter a different path. Enter continues to a template
+  picker. Existing files are refused, and `.ly` is added when omitted.
+
+The template picker starts with **Blank score** and includes all 22 template
+topics from the [LilyPond Learning Manual](https://lilypond.org/doc/v2.26/Documentation/learning/templates):
+single staff, piano, string quartet, vocal ensembles, orchestra, ancient notation
+and jazz, plus the built-in SATB/SSAATTBB starters. Names combine their section and
+subsection, such as **Single staff · Notes only**. Type to search, use Up/Down or
+Ctrl+N/Ctrl+P to select, and Enter to create the file and open it in Vim. Ctrl+U
+clears the query and restores the blank option; Esc returns to the filename.
+Search accepts reordered words, partial words, common instrument aliases and
+small spelling mistakes: try `single staff notes only`, `quartet string`,
+`str qrt`, `violins viola cello`, or `lead sheet chords lyrics`.
+
+Templates are bundled from the official 2.26 manual and work offline. The selected
+code, version and source attribution are written to the new permanent score;
+blank creates a genuinely empty file. The file is created only when the template
+or blank choice is confirmed. Cancelling the picker creates nothing, and a path
+that appears while you search is refused. User scores are never replaced.
 
 Path fields support Tab completion, spaces, Unicode and `~/`. Relative paths
 start in the displayed folder. Esc goes back, and `q` in the menu/browser or
@@ -87,7 +104,8 @@ Use `--pdfinfo /path/to/pdfinfo --pdftoppm /path/to/pdftoppm` for custom Poppler
 
 Flags precede the filename; use `--` for a filename beginning with `-`. Paths with
 spaces work. A new explicitly named source is created when you save it in Vim;
-the startup chooser creates a new score only after you confirm its location. The
+the startup chooser creates a new score only after you confirm its template or
+blank choice at the selected location. The
 `--vim` value is one executable path, not a shell command. Neovim is rejected,
 including when it is renamed or symlinked to `vim`.
 
@@ -132,6 +150,7 @@ Vim mappings normally. Tab and Ctrl+C remain Vim input.
 | `Ctrl+\`, then `e` | Focus Vim |
 | `Ctrl+\`, then `p` | Focus the score/status pane |
 | `Ctrl+\`, then `d` | Focus build diagnostics |
+| `Ctrl+\`, then `D` | Search the cached LilyPond manuals |
 | `Ctrl+\`, then `a` | Focus playback and audio setup |
 | `Ctrl+\`, then Space | Play / pause |
 | `Ctrl+\`, then `s` | Stop and return to the beginning |
@@ -173,6 +192,40 @@ screen and PTY. There are no tmux or separate-window dependencies.
 Mouse mode starts off. Enable it with the prefix, then drag the divider with the
 left button or scroll with a mouse wheel/trackpad over the preview. Editor mouse
 coordinates are translated and encoded according to Vim's requested mouse mode.
+
+## LilyPond documentation
+
+Press **`K` over a word in normal Vim mode** to read the relevant manual section
+inside Lyra. For example, `K` on `\tuplet` opens Tuplets. Lyra uses Vim's native
+`keywordprg` mechanism in `.ly` and `.ily` buffers; existing `K` mappings and custom
+keyword programs take precedence. `:LyraDocs key signature` performs an explicit
+lookup. Use `--no-docs-key` to leave the default keyword program unchanged.
+
+Press **`Ctrl+\`, then uppercase `D`** for fuzzy search across topic titles,
+indexed commands and manual text. Type a command or concept, use Up/Down (or
+Ctrl+N/Ctrl+P) to select, then Enter to read. Backspace edits the query and Ctrl+U
+clears it. In a section, `j`/`k` or arrows scroll, Space/Page Down and Page Up page,
+`g`/`G` jump to the ends, and `/` or `b` returns to the search results. Esc returns
+to Vim; `q` also returns while reading. Prefix `p` restores the score preview,
+including its current page and zoom. Opt-in mouse scrolling works in docs too.
+
+The docs pane uses the adjustable right-hand split; below 88 columns it fills the
+focused view. The first lookup downloads the official English **Notation
+Reference** and **Learning Manual** from [lilypond.org](https://lilypond.org/doc/v2.26/Documentation/web/manuals.html)
+and builds a local section/command index in the background. Subsequent sessions
+work offline from the cache. Ctrl+R refreshes the manuals, with `R` as an alias
+while reading. A failed refresh keeps previously loaded documentation and the
+offline cache. Download failures are shown in the pane while editing continues.
+
+Docs default to the **2.26** series. Match another installed LilyPond series with
+`lyra --docs-version 2.24 composition.ly`; each series has its own cache under
+the platform cache directory (`~/Library/Caches/lyra/docs` on macOS, or
+`$XDG_CACHE_HOME/lyra/docs` on Linux). No documentation is fetched until requested.
+The reader renders prose, tables and indented LilyPond examples as terminal text.
+Engraved example images are represented by labels and source links; it does not
+render the manual's music images yet. Source attribution and GNU FDL license
+links appear at the end of each section; the cached manuals include their license
+sections. No downloaded content is executed, and no Vim configuration is edited.
 
 ## Engraving and includes
 

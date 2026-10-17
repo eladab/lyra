@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"lyra/internal/draft"
+	"lyra/internal/scoretemplate"
 )
 
 type launchPage uint8
@@ -22,6 +23,7 @@ const (
 	launchBrowse
 	launchCreate
 	launchPath
+	launchTemplate
 )
 
 type launchInput struct{ event uv.Event }
@@ -43,6 +45,11 @@ type launchCompletion struct {
 	text, notice string
 	err          error
 }
+type launchDestination struct {
+	version uint64
+	path    string
+	err     error
+}
 
 type launcher struct {
 	ctx                    context.Context
@@ -60,6 +67,8 @@ type launcher struct {
 	version                uint64
 	chosen                 string
 	inputErr               error
+	destination            string
+	templates              []scoretemplate.Template
 }
 
 func newLauncher(ctx context.Context, events <-chan uv.Event, directory string, width, height int) *launcher {
@@ -67,7 +76,7 @@ func newLauncher(ctx context.Context, events <-chan uv.Event, directory string, 
 	if err != nil {
 		name = "new-score.ly"
 	}
-	return &launcher{ctx: ctx, events: events, directory: directory, suggested: name, width: max(1, width), height: max(1, height)}
+	return &launcher{ctx: ctx, events: events, directory: directory, suggested: name, width: max(1, width), height: max(1, height), templates: scoretemplate.Search("")}
 }
 
 func (m *launcher) Init() tea.Cmd {
@@ -127,9 +136,30 @@ func (m *launcher) choose(value string, create bool) tea.Cmd {
 	version, directory := m.version, m.directory
 	m.busy, m.err, m.notice = true, "", ""
 	return func() tea.Msg {
-		path, dir, err := chooseScorePath(m.ctx, value, directory, create)
+		if create {
+			path, err := scoreDestination(m.ctx, value, directory)
+			return launchDestination{version: version, path: path, err: err}
+		}
+		path, dir, err := chooseScorePath(m.ctx, value, directory, false)
 		return launchChosen{version: version, path: path, dir: dir, err: err}
 	}
+}
+
+func (m *launcher) createTemplate() tea.Cmd {
+	if len(m.templates) == 0 {
+		return nil
+	}
+	m.version++
+	version, path, content, ctx := m.version, m.destination, m.templates[m.selected].Code, m.ctx
+	m.busy, m.err = true, ""
+	return func() tea.Msg {
+		chosen, err := createScore(ctx, path, "", content)
+		return launchChosen{version: version, path: chosen, err: err}
+	}
+}
+
+func (m *launcher) filterTemplates() {
+	m.templates, m.selected = scoretemplate.Search(string(m.field)), 0
 }
 
 func (m *launcher) complete() tea.Cmd {
@@ -146,8 +176,15 @@ func (m *launcher) complete() tea.Cmd {
 }
 
 func (m *launcher) insert(text string) {
-	if len(string(m.field))+len(text) > 4096 || strings.IndexFunc(text, unicode.IsControl) >= 0 {
+	limit := 4096
+	if m.page == launchTemplate {
+		limit = 512
+	}
+	if len(string(m.field))+len(text) > limit || strings.IndexFunc(text, unicode.IsControl) >= 0 {
 		m.err = "Enter or paste one path, without line breaks or control characters"
+		if m.page == launchTemplate {
+			m.err = "Search with up to 512 bytes, without line breaks or control characters"
+		}
 		return
 	}
 	runes := []rune(text)
@@ -158,19 +195,39 @@ func (m *launcher) insert(text string) {
 	m.field, m.cursor = next, m.cursor+len(runes)
 	m.version++
 	m.err, m.notice = "", ""
+	if m.page == launchTemplate {
+		m.filterTemplates()
+	}
 }
 
 func (m *launcher) fieldKey(key uv.KeyPressEvent) tea.Cmd {
+	query := string(m.field)
+	defer func() {
+		if m.page == launchTemplate && query != string(m.field) {
+			m.filterTemplates()
+		}
+	}()
 	if !key.MatchString("esc", "enter", "tab") {
 		m.version++
 		m.err, m.notice = "", ""
 	}
 	switch key.String() {
 	case "esc":
+		if m.page == launchTemplate {
+			m.pathField(launchCreate, m.destination)
+			return nil
+		}
 		return m.load(m.directory)
 	case "enter":
+		if m.page == launchTemplate {
+			return m.createTemplate()
+		}
 		return m.choose(string(m.field), m.page == launchCreate)
 	case "tab":
+		if m.page == launchTemplate {
+			m.selected = min(max(0, len(m.templates)-1), m.selected+1)
+			return nil
+		}
 		return m.complete()
 	case "left":
 		m.cursor = max(0, m.cursor-1)
@@ -207,6 +264,22 @@ func (m *launcher) fieldKey(key uv.KeyPressEvent) tea.Cmd {
 			m.field = append(m.field[:m.cursor], m.field[m.cursor+1:]...)
 			m.version++
 		}
+	case "up", "ctrl+p", "shift+tab":
+		if m.page == launchTemplate {
+			m.selected = max(0, m.selected-1)
+		}
+	case "down", "ctrl+n":
+		if m.page == launchTemplate {
+			m.selected = min(max(0, len(m.templates)-1), m.selected+1)
+		}
+	case "pgup", "pgdown":
+		if m.page == launchTemplate {
+			delta := m.templateRows()
+			if key.String() == "pgup" {
+				delta = -delta
+			}
+			m.selected = max(0, min(max(0, len(m.templates)-1), m.selected+delta))
+		}
 	default:
 		if key.Mod&(uv.ModCtrl|uv.ModAlt|uv.ModMeta) == 0 {
 			m.insert(key.Text)
@@ -222,7 +295,7 @@ func (m *launcher) key(key uv.KeyPressEvent) tea.Cmd {
 	if m.busy {
 		return nil
 	}
-	if m.page == launchCreate || m.page == launchPath {
+	if m.page == launchCreate || m.page == launchPath || m.page == launchTemplate {
 		return m.fieldKey(key)
 	}
 	if m.page == launchMenu {
@@ -300,7 +373,7 @@ func (m *launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case uv.KeyPressEvent:
 			cmd = m.key(event)
 		case uv.PasteEvent:
-			if !m.busy && (m.page == launchCreate || m.page == launchPath) {
+			if !m.busy && (m.page == launchCreate || m.page == launchPath || m.page == launchTemplate) {
 				m.insert(event.Content)
 			}
 		}
@@ -329,6 +402,17 @@ func (m *launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.chosen = msg.path
 				return m, tea.Quit
+			}
+		}
+	case launchDestination:
+		if msg.version == m.version {
+			m.busy = false
+			if msg.err != nil {
+				m.err = msg.err.Error()
+			} else {
+				m.destination = msg.path
+				m.pathField(launchTemplate, "")
+				m.filterTemplates()
 			}
 		}
 	case launchCompletion:

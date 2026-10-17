@@ -14,7 +14,7 @@ func TestCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, args := range [][]string{{"one.ly", "two.ly"}, {"--unknown"}, {"--build-timeout", "0", "score.ly"}, {"--build-timeout", "-1s", "score.ly"}, {"--preview-theme", "sepia", "score.ly"}, {"--vim-style", "unknown", "score.ly"}} {
+	for _, args := range [][]string{{"one.ly", "two.ly"}, {"--unknown"}, {"--build-timeout", "0", "score.ly"}, {"--build-timeout", "-1s", "score.ly"}, {"--preview-theme", "sepia", "score.ly"}, {"--vim-style", "unknown", "score.ly"}, {"--docs-version", "../../oops"}, {"--docs-version", "2.26.0"}} {
 		if _, err := parse(args, &bytes.Buffer{}); err == nil {
 			t.Fatal(args)
 		}
@@ -25,6 +25,13 @@ func TestCLI(t *testing.T) {
 	opts, err := parse([]string{"--soundfont", "/bank with spaces.sf2", "--fluidsynth", "/custom/fluid", "--mpv", "/custom/player", "--audio-output", "coreaudio", "score.ly"}, &bytes.Buffer{})
 	if err != nil || opts.SoundFont != "/bank with spaces.sf2" || opts.FluidSynth != "/custom/fluid" || opts.MPV != "/custom/player" || opts.AudioOutput != "coreaudio" {
 		t.Fatalf("audio flags: %+v %v", opts, err)
+	}
+}
+
+func TestDocumentationOptions(t *testing.T) {
+	opts, err := parse([]string{"--docs-version", "2.24", "--no-docs-key", "score.ly"}, &bytes.Buffer{})
+	if err != nil || opts.DocsVersion != "2.24" || !opts.DisableDocsKey {
+		t.Fatalf("documentation options: %+v %v", opts, err)
 	}
 }
 

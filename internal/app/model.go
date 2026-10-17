@@ -63,10 +63,11 @@ type model struct {
 	audioState                audio.State
 	audioErr                  string
 	audioPane                 bool
+	docs                      docsPane
 }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.scheduleFrame(), probeTimer())
+	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.waitDocsLookup(), m.scheduleFrame(), probeTimer())
 }
 
 func (m *model) readInput() tea.Cmd {
@@ -91,7 +92,10 @@ func (m *model) waitEditor() tea.Cmd {
 func (m *model) dispatch(events []input.Event) error {
 	for _, event := range events {
 		switch event.Action {
+		case input.Documentation:
+			m.openDocs("", false)
 		case input.Audio:
+			m.docs.visible = false
 			m.focus, m.help, m.diagnostics, m.audioPane, m.paneScroll = input.Preview, false, false, true, 0
 		case input.PlayPause:
 			m.audioAction(audio.Toggle)
@@ -124,6 +128,7 @@ func (m *model) dispatch(events []input.Event) error {
 				return err
 			}
 		case input.Diagnostics:
+			m.docs.visible = false
 			m.focus, m.help, m.diagnostics, m.paneScroll = input.Preview, false, true, 0
 			m.audioPane = false
 		case input.ToggleMouse:
@@ -132,10 +137,12 @@ func (m *model) dispatch(events []input.Event) error {
 		case input.Editor:
 			m.focus, m.help = input.Editor, false
 		case input.Preview:
+			m.docs.visible = false
 			m.focus, m.help = input.Preview, false
 			m.diagnostics = false
 			m.audioPane = false
 		case input.Help:
+			m.docs.visible = false
 			m.focus, m.help, m.paneScroll = input.Preview, true, 0
 			m.audioPane = false
 		case input.Build:
@@ -156,6 +163,8 @@ func (m *model) dispatch(events []input.Event) error {
 				if err := m.session.WriteInput(event.Data); err != nil {
 					return err
 				}
+			} else if m.docs.visible {
+				m.docsKeys(event.Data)
 			} else if string(event.Data) == "q" || string(event.Data) == "\x1b" {
 				m.focus, m.help = input.Editor, false
 			} else if !m.help && m.audioPane {
@@ -201,11 +210,27 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	_, cmd := m.update(msg)
-	return m, tea.Batch(cmd, m.scheduleFrame())
+	return m, tea.Batch(cmd, m.loadDocs(), m.scheduleFrame())
 }
 
 func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case docsLookup:
+		m.docs.lastRequest = msg.id
+		m.openDocs(msg.query, true)
+		return m, m.waitDocsLookup()
+	case docsLoaded:
+		m.docs.loading = false
+		if msg.catalog != nil {
+			m.docs.catalog = msg.catalog
+			m.docs.section = -1
+			m.docs.searching = true
+			m.docs.scroll = 0
+			m.docs.search()
+		}
+		if msg.err != nil {
+			m.docs.err = msg.err.Error()
+		}
 	case probeTimeout:
 		if !m.graphics {
 			m.graphicsErr = "Terminal has no Kitty graphics support. Use Ghostty or Kitty."
@@ -326,15 +351,22 @@ func (m *model) preview(width, rows int) []string {
 	}
 	if m.help {
 		source = strings.Split("Lyra keys\nCtrl+\\ then:\n e Vim · p PDF · a audio\n d diagnostics · h help · q quit\n Space play/pause · s stop\n ,/. seek 5s · u latest take\n [/] split · = half · m mouse\n t preview paper theme\n b rebuild · c cancel build\n Ctrl+\\ send literal prefix\n\nPDF: n/p pages · +/- zoom\n 0 reset fit · f content/page\n t warm/night/original paper\n hjkl/arrows scroll · r redraw\n Space play/pause · s stop\n ,/. seek · u latest take\n\nAudio: Space play/pause\n s stop · 0 restart · +/- volume\n ,/. or arrows seek 5s\n u play latest from start\n\nBuilds: j/k scroll · l raw log\n g/G first/last · d/p return PDF\nq/Esc in a pane returns to Vim\nVim: :w, :q, :wq as usual", "\n")
+		source = append(source[:4], append([]string{" D docs search · Vim K lookup"}, source[4:]...)...)
 	}
 	if m.audioPane && !m.help {
 		source = m.audioLines(width)
 	}
+	if m.docs.visible {
+		source = m.docsLines(width, rows)
+	}
 	offset := min(m.paneScroll, max(0, len(source)-rows))
+	if m.docs.visible {
+		offset = 0
+	}
 	lines := make([]string, rows)
 	for y := range rows {
 		if y+offset < len(source) {
-			if y == 0 && offset == 0 && m.frames != nil && !m.help && !m.diagnostics && !m.audioPane {
+			if y == 0 && offset == 0 && m.frames != nil && !m.help && !m.diagnostics && !m.audioPane && !m.docs.visible {
 				lines[y] = lipgloss.NewStyle().Foreground(chromeMuted).Background(chromeBG).Render(fit(source[0], width))
 			} else {
 				lines[y] = muted.Render(fit(source[y+offset], width))
@@ -369,7 +401,7 @@ func (m *model) View() tea.View {
 			lines = append(lines, previewLines[y])
 		}
 	}
-	footer := " Ctrl+\\: Space play · s stop · ,/. seek · a audio · e Vim · p PDF · t theme · [/] split · h help · q quit"
+	footer := " Ctrl+\\: Space play · s stop · a audio · e Vim · p PDF · D docs · t theme · [/] split · h help · q quit"
 	if m.mouse {
 		footer += " · MOUSE ON"
 	}

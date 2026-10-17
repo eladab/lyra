@@ -29,6 +29,7 @@ const (
 	SeekForward
 	LatestAudio
 	PreviewTheme
+	Documentation
 )
 
 type Event struct {
@@ -106,7 +107,7 @@ func (r *Router) Feed(data []byte) []Event {
 		}
 		if r.prefix {
 			r.prefix = false
-			action := map[byte]Action{'e': Editor, 'p': Preview, 'h': Help, '?': Help, 'q': Quit, 'b': Build, 'c': CancelBuild, '[': Narrower, ']': Wider, '=': EqualSplit, 'd': Diagnostics, 'm': ToggleMouse, 'a': Audio, ' ': PlayPause, 's': StopAudio, ',': SeekBack, '.': SeekForward, 'u': LatestAudio, 't': PreviewTheme}[b]
+			action := map[byte]Action{'e': Editor, 'p': Preview, 'h': Help, '?': Help, 'q': Quit, 'b': Build, 'c': CancelBuild, '[': Narrower, ']': Wider, '=': EqualSplit, 'd': Diagnostics, 'm': ToggleMouse, 'a': Audio, ' ': PlayPause, 's': StopAudio, ',': SeekBack, '.': SeekForward, 'u': LatestAudio, 't': PreviewTheme, 'D': Documentation}[b]
 			if action != None {
 				events = append(events, Event{Action: action})
 				continue
