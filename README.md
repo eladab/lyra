@@ -6,6 +6,11 @@ Lyra is a Go terminal-native LilyPond music workstation for macOS Apple Silicon.
 It runs genuine traditional Vim inside one Bubble Tea/Lip Gloss interface and
 interprets Vim's PTY output with a VT emulator.
 
+![Lyra with LilyPond source in Vim and the engraved Afterglow score side by side](docs/images/lyra-afterglow.png)
+
+Editing [Afterglow](examples/afterglow.ly), a one-page score for flute, cello and
+piano, with an in-terminal PDF preview.
+
 **Current milestone: Phase 4 playback.** Genuine embedded Vim, compile-on-save,
 diagnostics, in-terminal PDF preview and MIDI playback are implemented. FluidSynth
 prepares audio in the background; mpv provides play/pause, stop, seeking, volume
