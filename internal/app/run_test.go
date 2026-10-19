@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -26,6 +27,7 @@ import (
 	"github.com/charmbracelet/x/vt"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
+	"lyra/internal/config"
 )
 
 // TestAppProcess becomes a standalone Lyra process only inside our test PTY.
@@ -33,6 +35,7 @@ func TestAppProcess(t *testing.T) {
 	if os.Getenv("LYRA_TEST_PROCESS") != "1" {
 		return
 	}
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(os.Getenv("HOME"), "config"))
 	before, err := unix.IoctlGetTermios(int(os.Stdin.Fd()), termiosGetRequest)
 	if err != nil {
 		t.Fatal(err)
@@ -55,6 +58,14 @@ func TestAppProcess(t *testing.T) {
 	if err != nil && os.Getenv("LYRA_TEST_SIGNAL") != "1" {
 		t.Fatal(err)
 	}
+}
+
+func testRecentScores(home string) config.RecentScores {
+	dir := filepath.Join(home, "config", "lyra")
+	if runtime.GOOS == "darwin" {
+		dir = filepath.Join(home, "Library", "Application Support", "lyra")
+	}
+	return config.RecentScores{Directory: dir}
 }
 
 func waitFor(t *testing.T, name string, check func() bool) {
@@ -242,6 +253,10 @@ echo run >> "$source.builds"
 				}
 			})
 			waitFor(t, "Vim startup", func() bool { _, err := os.Stat(ready); return err == nil })
+			waitFor(t, "command-line score enters history", func() bool {
+				paths, err := testRecentScores(dir).Load(context.Background())
+				return err == nil && len(paths) == 1 && paths[0] == file
+			})
 			waitFor(t, "empty-buffer Bubble Tea frame", func() bool {
 				mu.Lock()
 				defer mu.Unlock()

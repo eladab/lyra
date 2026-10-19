@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"lyra/internal/config"
 	"lyra/internal/draft"
 	"lyra/internal/scoretemplate"
 )
@@ -24,6 +25,14 @@ const (
 	launchCreate
 	launchPath
 	launchTemplate
+	launchRecent
+)
+
+const (
+	launchOpenOption = iota
+	launchRecentOption
+	launchNewOption
+	launchMenuOptions
 )
 
 type launchInput struct{ event uv.Event }
@@ -69,6 +78,7 @@ type launcher struct {
 	inputErr               error
 	destination            string
 	templates              []scoretemplate.Template
+	recent                 config.RecentScores
 }
 
 func newLauncher(ctx context.Context, events <-chan uv.Event, directory string, width, height int) *launcher {
@@ -298,20 +308,30 @@ func (m *launcher) key(key uv.KeyPressEvent) tea.Cmd {
 	if m.page == launchCreate || m.page == launchPath || m.page == launchTemplate {
 		return m.fieldKey(key)
 	}
+	if m.page == launchRecent {
+		return m.recentKey(key)
+	}
 	if m.page == launchMenu {
 		switch key.String() {
 		case "esc", "q":
 			return tea.Quit
-		case "up", "down", "j", "k", "tab", "shift+tab":
-			m.menu = 1 - m.menu
+		case "up", "k", "shift+tab":
+			m.menu = (m.menu + launchMenuOptions - 1) % launchMenuOptions
+		case "down", "j", "tab":
+			m.menu = (m.menu + 1) % launchMenuOptions
 		case "o", "1":
 			m.creating = false
 			return m.load(m.directory)
-		case "n", "2":
+		case "r", "2":
+			return m.loadRecent()
+		case "n", "3":
 			m.creating = true
 			return m.load(m.directory)
 		case "enter":
-			m.creating = m.menu == 1
+			if m.menu == launchRecentOption {
+				return m.loadRecent()
+			}
+			m.creating = m.menu == launchNewOption
 			return m.load(m.directory)
 		}
 		return nil
@@ -390,11 +410,15 @@ func (m *launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = "Read folder: " + msg.err.Error()
 			}
 		}
+	case launchRecents:
+		m.setRecent(msg)
 	case launchChosen:
 		if msg.version == m.version {
 			m.busy = false
 			if msg.err != nil {
 				m.err = msg.err.Error()
+			} else if msg.dir && m.page == launchRecent {
+				m.err = "That recent score is now a folder; choose another score"
 			} else if msg.dir {
 				return m, m.load(msg.path)
 			} else if m.creating && m.page == launchPath {

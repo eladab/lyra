@@ -160,6 +160,9 @@ and subsection names with instrument aliases, reordered words and spelling
 tolerance. Only confirming the template/blank option creates the destination
 exclusively; Vim starts with the selected content at the permanent path and saves
 normally from the first write. All 22 starters engrave with real LilyPond 2.26.
+Open Recent lists up to 20 launch scores with paths, newest first, including
+command-line and newly created scores. Private history uses the platform config
+directory, merges concurrent launches and revalidates selections before opening.
 
 - Add versioned TOML config for executables, theme, compile-on-save, debounce,
   renderer preference, SoundFont, audio backend and configurable prefix/bindings.

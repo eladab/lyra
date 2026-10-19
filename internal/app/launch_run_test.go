@@ -4,6 +4,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -22,7 +23,7 @@ func TestStartupChooserFullTUI(t *testing.T) {
 	if _, err := exec.LookPath("vim"); err != nil {
 		t.Skip("requires traditional Vim")
 	}
-	for _, action := range []string{"open", "create", "template", "cancel", "signal", "template-cancel", "template-signal"} {
+	for _, action := range []string{"open", "recent", "create", "template", "cancel", "signal", "template-cancel", "template-signal"} {
 		t.Run(action, func(t *testing.T) {
 			dir := t.TempDir()
 			ready := filepath.Join(dir, "vim-started")
@@ -35,6 +36,11 @@ func TestStartupChooserFullTUI(t *testing.T) {
 			existing := filepath.Join(dir, "existing 雨.ly")
 			if err := os.WriteFile(existing, []byte("{ c4 }\n"), 0600); err != nil {
 				t.Fatal(err)
+			}
+			if action == "recent" {
+				if err := testRecentScores(dir).Remember(context.Background(), existing); err != nil {
+					t.Fatal(err)
+				}
 			}
 			folder := filepath.Join(dir, "new scores")
 			if err := os.Mkdir(folder, 0700); err != nil {
@@ -122,6 +128,10 @@ printf 'run\n' >> "$source.builds"
 			}
 			target := existing
 			switch action {
+			case "recent":
+				write("r")
+				waitFor(t, "recent score list", func() bool { return hasText("existing 雨.ly") && hasText("newest first") })
+				write("\r")
 			case "cancel":
 				write("q")
 			case "signal":
@@ -174,7 +184,7 @@ printf 'run\n' >> "$source.builds"
 					write("\r") // Default choice is a genuinely empty score.
 				}
 			}
-			if action == "open" || action == "create" || action == "template" {
+			if action == "open" || action == "recent" || action == "create" || action == "template" {
 				var lines []string
 				waitFor(t, "chosen score starts Vim", func() bool {
 					started, err := os.ReadFile(ready)
@@ -186,6 +196,10 @@ printf 'run\n' >> "$source.builds"
 				if left == nil || right == nil || !os.SameFile(left, right) {
 					t.Fatal("Vim opened a different file", lines)
 				}
+				waitFor(t, "chosen score enters history", func() bool {
+					paths, err := testRecentScores(dir).Load(context.Background())
+					return err == nil && len(paths) == 1 && paths[0] == target
+				})
 				if (action == "open" || action == "template") && lines[1] != "64" {
 					t.Fatal("editor did not use the resized terminal", lines)
 				}

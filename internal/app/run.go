@@ -10,12 +10,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
 	"lyra/internal/audio"
+	"lyra/internal/config"
 	documentation "lyra/internal/docs"
 	"lyra/internal/editor"
 	"lyra/internal/input"
@@ -68,6 +70,22 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 		return err
 	}
 	defer session.Close()
+	if strings.EqualFold(filepath.Ext(opts.File), ".ly") {
+		// History I/O never holds up the editor's event loop. Join the bounded
+		// worker on exit, and report persistence failures after terminal cleanup.
+		historyCtx, stopHistory := context.WithTimeout(ctx, 2*time.Second)
+		historyDone := make(chan error, 1)
+		go func() {
+			defer stopHistory()
+			historyDone <- (config.RecentScores{}).Remember(historyCtx, opts.File)
+		}()
+		defer func() {
+			if err := <-historyDone; err != nil && !errors.Is(err, context.Canceled) {
+				_, writeErr := fmt.Fprintf(out, "lyra: could not remember recent score: %v\r\n", err)
+				result = errors.Join(result, writeErr)
+			}
+		}()
+	}
 	restore, err := prepareTerminal(in, out)
 	if err != nil {
 		return err

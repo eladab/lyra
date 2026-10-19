@@ -40,6 +40,10 @@ Run `lyra` without a filename to open a startup chooser:
 - **Open a score** browses folders and existing `.ly` files. Use arrows or `j`/`k`
   to select, Enter to open, and Left to go to the parent folder. `.` toggles hidden
   files, `~` goes home, and `/` lets you enter a path directly.
+- **Open Recent** (or `r` from the menu) lists the last 20 scores opened in Lyra,
+  newest first, with their paths. Use arrows or `j`/`k` and Enter to reopen a score;
+  Esc returns to the menu. Missing or inaccessible files show an error so you can
+  choose another score. Command-line launches and new scores also enter history.
 - **Create a score** lets you browse to a folder, then press `n` to choose the
   filename and location. Lyra suggests a musical name such as `starlit-cadenza.ly`;
   edit it or use Ctrl+U to enter a different path. Enter continues to a template
@@ -70,6 +74,9 @@ must already exist; the chosen score is a permanent file and remains on exit.
 Vim starts after you choose a score. The first `:w` saves normally, and
 compile-on-save, relative includes, PDF preview and playback follow the selected
 file. `lyra path/to/score.ly` still opens that file directly without the chooser.
+Recent paths are saved privately in `~/Library/Application Support/lyra/recent.json`
+on macOS (`$XDG_CONFIG_HOME/lyra/recent.json`, or `~/.config/lyra/recent.json`, on
+Linux). History failures do not prevent editing.
 
 Homebrew must already be installed and on PATH. `make install` runs `make deps`
 using the project's [Brewfile](Brewfile) (Go, Vim, LilyPond, Poppler, FluidSynth and mpv), builds

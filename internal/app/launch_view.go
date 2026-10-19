@@ -15,6 +15,8 @@ func (m *launcher) listRows() int { return max(1, min(12, m.height-15)) }
 
 func (m *launcher) templateRows() int { return max(1, min(10, m.height-16)) }
 
+func (m *launcher) recentRows() int { return max(1, min(6, (m.height-12)/2)) }
+
 func launchText(text string, width int) string {
 	return fit(ansi.Truncate(cleanLabel(text), max(1, width), "…"), max(1, width))
 }
@@ -51,19 +53,50 @@ func (m *launcher) View() tea.View {
 	accent := text.Foreground(chromeAccent).Bold(true)
 	var rows []string
 	rows = append(rows, accent.Render(launchText("LYRA", inner)), "")
-	status, footer := m.notice, "↑/↓ select · Enter continue · o open · n new · Esc quit"
+	status, footer := m.notice, "↑/↓ select · Enter · o open · r recent · n new · Esc quit"
 	switch m.page {
 	case launchMenu:
 		rows = append(rows, text.Bold(true).Render(launchText("Begin a composition", inner)), dim.Render(launchText("Open your music, or give a new score a home.", inner)), "")
 		for i, option := range []struct{ title, detail string }{
 			{"Open a score", "Browse folders and existing .ly files"},
+			{"Open Recent", "Return to a recently opened score"},
 			{"Create a score", "Choose a folder and name for a new composition"},
 		} {
 			style, marker := text, "  "
 			if m.menu == i {
 				style, marker = text.Background(activePaneBG).Foreground(chromeFocus).Bold(true), "› "
 			}
-			rows = append(rows, style.Render(launchText(marker+option.title, inner)), dim.Render(launchText("  "+option.detail, inner)), "")
+			rows = append(rows, style.Render(launchText(marker+option.title, inner)), dim.Render(launchText("  "+option.detail, inner)))
+			if h >= 21 {
+				rows = append(rows, "")
+			}
+		}
+	case launchRecent:
+		footer = "↑/↓ move · Enter open · Esc back · q quit"
+		rows = append(rows, text.Bold(true).Render(launchText("Open Recent", inner)), dim.Render(launchText("Scores opened in Lyra · newest first", inner)), "")
+		count := m.recentRows()
+		offset := max(0, min(m.selected-count/2, len(m.entries)-count))
+		for row := range count {
+			label, path, style := "", "", text
+			index := offset + row
+			if index < len(m.entries) {
+				entry := m.entries[index]
+				marker := "  "
+				if index == m.selected {
+					marker, style = "› ", text.Background(activePaneBG).Foreground(chromeFocus).Bold(true)
+				}
+				label, path = marker+entry.name, "  "+entry.path
+			} else if row == 0 {
+				label = "No recent scores yet"
+				path = "Open or create a score to add it here."
+			}
+			if m.loading && row == 0 {
+				label, path = "Reading recent scores…", ""
+			}
+			rows = append(rows, style.Render(launchText(label, inner)), dim.Render(launchText(path, inner)))
+		}
+		if !m.loading && len(m.entries) > 0 {
+			status = fmt.Sprintf("%d/%d", m.selected+1, len(m.entries))
 		}
 	case launchBrowse:
 		title := "Open a score"

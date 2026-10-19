@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"lyra/internal/config"
 	"lyra/internal/scoretemplate"
 )
 
@@ -178,7 +179,7 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 	m := newLauncher(context.Background(), nil, "/scores/雨\x1b[2J/"+strings.Repeat("a long folder name/", 8), 100, 32)
 	for _, size := range [][2]int{{1, 1}, {20, 8}, {28, 18}, {60, 24}, {120, 40}} {
 		m.width, m.height = size[0], size[1]
-		for _, page := range []launchPage{launchMenu, launchBrowse, launchCreate, launchPath, launchTemplate} {
+		for _, page := range []launchPage{launchMenu, launchBrowse, launchCreate, launchPath, launchTemplate, launchRecent} {
 			m.page = page
 			m.field, m.cursor = []rune(m.directory), len([]rune(m.directory))
 			lines := strings.Split(m.View().Content, "\n")
@@ -204,10 +205,15 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 				expected := 16
 				if page == launchMenu {
 					expected = 18
+					if m.height >= 21 {
+						expected = 21
+					}
 				} else if page == launchBrowse {
 					expected = 12 + m.listRows()
 				} else if page == launchTemplate {
 					expected = 14 + m.templateRows()
+				} else if page == launchRecent {
+					expected = 12 + 2*m.recentRows()
 				}
 				if top < 0 || bottom-top+1 != expected {
 					t.Fatal("dialog content wrapped or its frame was clipped", size, page, top, bottom)
@@ -220,6 +226,64 @@ func TestLauncherFitsTerminalAndSanitizesPaths(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestLauncherRecentSelectionAndStaleResults(t *testing.T) {
+	dir := t.TempDir()
+	store := config.RecentScores{Directory: filepath.Join(dir, "config")}
+	m := newLauncher(context.Background(), nil, dir, 100, 32)
+	m.recent = store
+	runLaunchCommand(m, m.key(launchKey("r")))
+	if m.page != launchRecent || !strings.Contains(m.View().Content, "No recent scores yet") {
+		t.Fatal("empty recent list did not explain how to add scores")
+	}
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if m.chosen != "" {
+		t.Fatal("empty history opened a score")
+	}
+	for _, path := range []string{"first 雨.ly", "missing.ly", "folder.ly"} {
+		if err := store.Remember(m.ctx, filepath.Join(dir, path)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	good := filepath.Join(dir, "first 雨.ly")
+	if err := os.WriteFile(good, []byte("{ c4 }"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "folder.ly"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	runLaunchCommand(m, m.key(launchKey("\x1b")))
+	stale := m.loadRecent()
+	runLaunchCommand(m, m.key(launchKey("\x1b")))
+	runLaunchCommand(m, stale)
+	if m.page != launchMenu || len(m.entries) != 0 || m.loading {
+		t.Fatal("stale recent load changed the menu")
+	}
+	m.menu = launchOpenOption
+	runLaunchCommand(m, m.key(launchKey("\x1b[A")))
+	if m.menu != launchNewOption {
+		t.Fatal("menu up did not wrap through all three choices")
+	}
+	runLaunchCommand(m, m.key(launchKey("\x1b[A")))
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if m.page != launchRecent || m.creating || len(m.entries) != 3 {
+		t.Fatal("menu selection did not open recent history")
+	}
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if m.chosen != "" || m.busy || !strings.Contains(m.err, "folder") || m.page != launchRecent {
+		t.Fatal("recent score replaced by a folder left the list", m.err)
+	}
+	runLaunchCommand(m, m.key(launchKey("j")))
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if m.chosen != "" || m.busy || m.err == "" || m.page != launchRecent {
+		t.Fatal("missing recent score did not leave a usable list", m.err)
+	}
+	runLaunchCommand(m, m.key(launchKey("G")))
+	runLaunchCommand(m, m.key(launchKey("\r")))
+	if m.chosen != good {
+		t.Fatal("recent selection did not open the stored absolute path", m.chosen)
 	}
 }
 
