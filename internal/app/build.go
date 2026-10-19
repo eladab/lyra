@@ -77,7 +77,15 @@ func (m *model) buildLines(width int) []string {
 		}
 		lines = append(lines, "Outputs kept for this session.")
 	}
-	lines = append(lines, "", "Ctrl+\\ p  Engraved PDF preview", "Ctrl+\\ a  Playback and audio setup", "", "Ctrl+\\ b  Rebuild saved score", "Ctrl+\\ c  Cancel build", "j/k scroll · l toggle raw log")
+	if m.pdfViewerState.Busy {
+		lines = append(lines, "", "Opening PDF in default viewer...")
+	} else if m.pdfViewerState.Err != nil {
+		lines = append(lines, "", "Open PDF: "+m.pdfViewerState.Err.Error())
+	}
+	if m.pdfViewerState.Path != "" {
+		lines = append(lines, "", "Viewer copy: "+m.pdfViewerState.Path, "Save a copy in the viewer before closing Lyra.")
+	}
+	lines = append(lines, "", "Ctrl+\\ p  Engraved PDF preview", "Ctrl+\\ o  Open PDF in default viewer", "Ctrl+\\ a  Playback and audio setup", "", "Ctrl+\\ b  Rebuild saved score", "Ctrl+\\ c  Cancel build", "j/k scroll · l toggle raw log")
 	if s.WatchWarning != "" {
 		lines = append(lines, "", s.WatchWarning)
 	}

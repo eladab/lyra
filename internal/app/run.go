@@ -105,6 +105,10 @@ func Run(ctx context.Context, opts Options, in, out *os.File) (result error) {
 	id := rand.Uint32() | 0x1000000
 	frames := newFrameRenderer(preview.Kitty{ID: id})
 	m := &model{session: session, reader: reader, layout: l, file: opts.File, focus: input.Editor, builds: builds, previews: previews, frames: frames, imageID: id, split: .5, zoom: 1, page: 1, previewTheme: opts.PreviewTheme}
+	if builds != nil {
+		m.pdfViewer = newPDFViewer(ctx, builds.Root, opts.File, builds.OpenLatestPDF, launchPDFViewer)
+		defer m.pdfViewer.Close()
+	}
 	docsCtx, stopDocs := context.WithCancel(ctx)
 	defer stopDocs()
 	m.docs = docsPane{ctx: docsCtx, loader: documentation.Loader{Version: opts.DocsVersion}, notification: docsNotification, section: -1}

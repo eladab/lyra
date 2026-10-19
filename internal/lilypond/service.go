@@ -150,6 +150,22 @@ func (s *Service) OpenPDF(generation uint64) (io.ReadCloser, error) {
 	return os.Open(r.PDFs[0])
 }
 
+// OpenLatestPDF pins the latest successful PDF for an explicit external open.
+// Selecting and opening it under the same lock prevents a rebuild from removing
+// the generation between those operations. The caller owns the descriptor.
+func (s *Service) OpenLatestPDF() (io.ReadCloser, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.state.LastGood
+	if s.closed || r == nil {
+		return nil, fmt.Errorf("no successful build yet; save with :w first")
+	}
+	if len(r.PDFs) == 0 {
+		return nil, fmt.Errorf("last successful build has no PDF; add a layout block")
+	}
+	return os.Open(r.PDFs[0])
+}
+
 // OpenMIDI gives synthesis the same descriptor ownership as PDF preview.
 func (s *Service) OpenMIDI(generation uint64) (io.ReadCloser, error) {
 	s.mu.Lock()

@@ -64,10 +64,13 @@ type model struct {
 	audioErr                  string
 	audioPane                 bool
 	docs                      docsPane
+	pdfViewer                 *pdfViewer
+	pdfViewerState            pdfViewerState
+	pdfViewerNotice           string
 }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.waitDocsLookup(), m.scheduleFrame(), probeTimer())
+	return tea.Batch(m.readInput(), m.waitEditor(), m.waitBuild(), m.waitPreview(), m.waitAudio(), m.waitDocsLookup(), m.waitPDFViewer(), m.scheduleFrame(), probeTimer())
 }
 
 func (m *model) readInput() tea.Cmd {
@@ -91,7 +94,12 @@ func (m *model) waitEditor() tea.Cmd {
 
 func (m *model) dispatch(events []input.Event) error {
 	for _, event := range events {
+		if event.Action != input.HostReply && event.Action != input.MouseEvent {
+			m.pdfViewerNotice = ""
+		}
 		switch event.Action {
+		case input.OpenPDF:
+			m.openPDFViewer()
 		case input.Documentation:
 			m.openDocs("", false)
 		case input.Audio:
@@ -215,6 +223,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case pdfViewerMsg:
+		m.pdfViewerState = pdfViewerState(msg)
+		switch {
+		case msg.Err != nil:
+			m.pdfViewerNotice = "Open PDF: " + cleanLabel(msg.Err.Error()) + " · Ctrl+\\ d for details"
+		case msg.Busy:
+			m.pdfViewerNotice = "Opening PDF in default viewer..."
+		default:
+			m.pdfViewerNotice = "PDF sent to default viewer · save a copy before closing Lyra"
+		}
+		return m, m.waitPDFViewer()
 	case docsLookup:
 		m.docs.lastRequest = msg.id
 		m.openDocs(msg.query, true)
@@ -346,12 +365,13 @@ func (m *model) preview(width, rows int) []string {
 	if m.frames != nil && !m.diagnostics {
 		source = []string{m.previewStatus()}
 		if m.previewState.Payload == "" {
-			source = append(source, "", "Ctrl+\\ d: build diagnostics", "n/p pages · +/- zoom · 0 fit", "f content/page · hjkl scroll", "t paper theme · r reload", "Ctrl+\\ [ / ]: adjust split", "Ctrl+\\ m: toggle mouse")
+			source = append(source, "", "Ctrl+\\ d: build diagnostics", "n/p pages · +/- zoom · 0 fit", "f content/page · hjkl scroll", "t paper theme · r reload", "Ctrl+\\ o: open PDF externally", "Ctrl+\\ [ / ]: adjust split", "Ctrl+\\ m: toggle mouse")
 		}
 	}
 	if m.help {
 		source = strings.Split("Lyra keys\nCtrl+\\ then:\n e Vim · p PDF · a audio\n d diagnostics · h help · q quit\n Space play/pause · s stop\n ,/. seek 5s · u latest take\n [/] split · = half · m mouse\n t preview paper theme\n b rebuild · c cancel build\n Ctrl+\\ send literal prefix\n\nPDF: n/p pages · +/- zoom\n 0 reset fit · f content/page\n t warm/night/original paper\n hjkl/arrows scroll · r redraw\n Space play/pause · s stop\n ,/. seek · u latest take\n\nAudio: Space play/pause\n s stop · 0 restart · +/- volume\n ,/. or arrows seek 5s\n u play latest from start\n\nBuilds: j/k scroll · l raw log\n g/G first/last · d/p return PDF\nq/Esc in a pane returns to Vim\nVim: :w, :q, :wq as usual", "\n")
 		source = append(source[:4], append([]string{" D docs search · Vim K lookup"}, source[4:]...)...)
+		source = append(source[:5], append([]string{" o open PDF in default viewer"}, source[5:]...)...)
 	}
 	if m.audioPane && !m.help {
 		source = m.audioLines(width)
@@ -401,7 +421,10 @@ func (m *model) View() tea.View {
 			lines = append(lines, previewLines[y])
 		}
 	}
-	footer := " Ctrl+\\: Space play · s stop · a audio · e Vim · p PDF · D docs · t theme · [/] split · h help · q quit"
+	footer := " Ctrl+\\: Space play · s stop · a audio · e Vim · p PDF · o open PDF · D docs · t theme · [/] split · h help · q quit"
+	if m.pdfViewerNotice != "" {
+		footer = " " + m.pdfViewerNotice
+	}
 	if m.mouse {
 		footer += " · MOUSE ON"
 	}

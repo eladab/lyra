@@ -161,6 +161,7 @@ Vim mappings normally. Tab and Ctrl+C remain Vim input.
 | --- | --- |
 | `Ctrl+\`, then `e` | Focus Vim |
 | `Ctrl+\`, then `p` | Focus the score/status pane |
+| `Ctrl+\`, then `o` | Open the latest successful PDF in the system's default viewer |
 | `Ctrl+\`, then `d` | Focus build diagnostics |
 | `Ctrl+\`, then `D` | Search the cached LilyPond manuals |
 | `Ctrl+\`, then `a` | Focus playback and audio setup |
@@ -267,6 +268,15 @@ and obsolete builds keep the last good generation. Output paths appear in the
 pane and remain available **during this session**. Lyra removes its temporary
 outputs on exit. A MIDI-only score is supported; absence of MIDI or PDF is shown
 explicitly. A successful compiler exit with neither artifact is an error.
+
+Press `Ctrl+\`, then `o` to open the latest successful PDF in your system's
+default PDF viewer (`open` on macOS, `xdg-open` on Linux). This also works after
+a failed build, using the retained good PDF. The viewer receives a separate
+session-local copy named after your score, so subsequent builds do not remove
+the file it opened. Another explicit open updates that copy. Use the viewer's
+Save As, Duplicate or Export command to keep it wherever you want before closing
+Lyra. Missing viewers or launch failures appear in the footer and build pane;
+editing and the terminal preview continue normally.
 
 Diagnostics include filename, line, column and severity; `l` in diagnostics exposes
 the bounded raw log (up to 256 KiB). `Ctrl+\ d` opens diagnostics from the editor.

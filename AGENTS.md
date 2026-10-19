@@ -122,6 +122,11 @@ restore images after an ED2 text redraw, and clean up modes after Tea output sto
 
 ## Keys and layout
 
+Prefix `o` opens the latest successful PDF in the system's default PDF viewer.
+Keep its session-local viewer copy separate from replaceable build generations;
+save a permanent copy in the viewer before Lyra exits. Launching runs off the UI
+thread and must not inherit terminal input/output.
+
 `Ctrl+\` is a two-keystroke command prefix: `e` editor, `p` preview, `h`/`?` help,
 `q` request quit through Vim, `b` rebuild the saved launch score, `c` cancel
 engraving, and another `Ctrl+\` sends a literal prefix byte.
