@@ -155,11 +155,16 @@ HTML, offline/failed-refresh and outer-TUI paths are covered by tests.
 No-argument sessions show a startup chooser with filesystem browsing and path
 completion for opening `.ly` scores or choosing a new score's location. New
 files get editable musical name suggestions, followed by an offline fuzzy picker
-of 22 official Learning Manual templates or a blank score. Search combines section
-and subsection names with instrument aliases, reordered words and spelling
+of 22 official Learning Manual templates, 15 original Lyra ensemble starters,
+or a blank score. The additions cover chamber strings, piano/wind/brass groups,
+string orchestra, two chamber orchestras and two symphony orchestras, with
+explicit instrumentation, written-pitch staves and concert-pitch music entry.
+Search combines section and subsection names with instrument aliases, reordered
+words and spelling
 tolerance. Only confirming the template/blank option creates the destination
 exclusively; Vim starts with the selected content at the permanent path and saves
-normally from the first write. All 22 starters engrave with real LilyPond 2.26.
+normally from the first write. All 37 starters engrave with real LilyPond 2.26;
+the 15 additions also have sounding-pitch and MIDI-instrument verification.
 Open Recent lists up to 20 launch scores with paths, newest first, including
 command-line and newly created scores. Private history uses the platform config
 directory, merges concurrent launches and revalidates selections before opening.

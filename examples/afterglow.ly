@@ -204,5 +204,5 @@ pianoLeft = {
       \override VerticalAxisGroup.staff-staff-spacing.basic-distance = #10
     }
   }
-  \midi { \tempo 4. = 58 }
+  \midi { \tempo 4. = 58 \volume 127 }
 }

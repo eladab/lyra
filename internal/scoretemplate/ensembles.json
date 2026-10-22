@@ -1,0 +1,107 @@
+[
+  {
+    "ID": "string-trio",
+    "Category": "Chamber strings",
+    "Name": "String trio",
+    "Source": "Lyra ensemble library",
+    "Aliases": "violin viola cello violoncello three strings chamber ensemble"
+  },
+  {
+    "ID": "string-quintet-two-violas",
+    "Category": "Chamber strings",
+    "Name": "String quintet (two violas)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "two 2 violins two 2 violas cello violoncello viola quintet Mozart Brahms chamber ensemble"
+  },
+  {
+    "ID": "string-quintet-two-cellos",
+    "Category": "Chamber strings",
+    "Name": "String quintet (two cellos)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "two 2 violins viola two 2 cellos violoncello cello quintet Schubert Boccherini chamber ensemble"
+  },
+  {
+    "ID": "string-sextet",
+    "Category": "Chamber strings",
+    "Name": "String sextet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "two 2 violins two 2 violas two 2 cellos six strings Brahms chamber ensemble"
+  },
+  {
+    "ID": "piano-trio",
+    "Category": "Chamber with piano",
+    "Name": "Piano trio",
+    "Source": "Lyra ensemble library",
+    "Aliases": "violin cello violoncello piano keyboard three chamber ensemble"
+  },
+  {
+    "ID": "piano-quartet",
+    "Category": "Chamber with piano",
+    "Name": "Piano quartet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "violin viola cello piano keyboard four chamber ensemble"
+  },
+  {
+    "ID": "piano-quintet",
+    "Category": "Chamber with piano",
+    "Name": "Piano quintet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "two 2 violins viola cello piano keyboard string quartet five chamber ensemble"
+  },
+  {
+    "ID": "clarinet-quintet",
+    "Category": "Chamber winds",
+    "Name": "Clarinet quintet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "B flat Bb clarinet two 2 violins viola cello string quartet chamber ensemble"
+  },
+  {
+    "ID": "woodwind-quintet",
+    "Category": "Chamber winds",
+    "Name": "Woodwind quintet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "wind quintet flute oboe Bb clarinet french horn F bassoon five chamber ensemble"
+  },
+  {
+    "ID": "brass-quintet",
+    "Category": "Chamber brass",
+    "Name": "Brass quintet",
+    "Source": "Lyra ensemble library",
+    "Aliases": "two 2 Bb trumpets french horn F trombone tuba five chamber ensemble"
+  },
+  {
+    "ID": "string-orchestra",
+    "Category": "Orchestral",
+    "Name": "String orchestra",
+    "Source": "Lyra ensemble library",
+    "Aliases": "chamber orchestra strings violins violas cellos double bass contrabass five sections"
+  },
+  {
+    "ID": "chamber-orchestra-single-winds",
+    "Category": "Orchestral",
+    "Name": "Chamber orchestra (single winds)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "small sinfonietta single winds 1111 2000 flute oboe clarinet bassoon two horns strings chamber orchestra"
+  },
+  {
+    "ID": "chamber-orchestra-classical",
+    "Category": "Orchestral",
+    "Name": "Chamber orchestra (Classical)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "classical chamber orchestra Mozart Haydn double winds 2222 2200 two flutes oboes clarinets bassoons horns trumpets timpani strings"
+  },
+  {
+    "ID": "symphony-orchestra-double-winds",
+    "Category": "Orchestral",
+    "Name": "Symphony orchestra (double winds)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "symphonic full score conductor romantic orchestra double winds 2222 4231 flute oboe clarinet bassoon four horns trumpet trombone tuba timpani strings"
+  },
+  {
+    "ID": "symphony-orchestra-expanded",
+    "Category": "Orchestral",
+    "Name": "Symphony orchestra (expanded winds)",
+    "Source": "Lyra ensemble library",
+    "Aliases": "symphonic full score large romantic orchestra triple winds 3333 4331 piccolo flute oboe english horn cor anglais clarinet bass clarinet bassoon contrabassoon four horns trumpet trombone tuba timpani percussion snare harp strings"
+  }
+]

@@ -1,9 +1,9 @@
 // Package scoretemplate provides offline score starters from the official
-// LilyPond Learning Manual and a forgiving search over their full topic paths.
+// LilyPond Learning Manual and Lyra's ensemble library, with forgiving search.
 package scoretemplate
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"sort"
 	"strings"
@@ -12,6 +12,11 @@ import (
 
 //go:embed templates.json
 var data []byte
+
+// Keep original ensemble sources separate from the generated manual catalog.
+//
+//go:embed ensembles.json ensembles/*.ly
+var ensembles embed.FS
 
 type Template struct {
 	ID, Category, Name, Source, Aliases, Code string
@@ -32,7 +37,23 @@ func load() []Template {
 	if err := json.Unmarshal(data, &imported); err != nil {
 		panic("invalid embedded LilyPond templates: " + err.Error())
 	}
-	return append(all, imported...)
+	all = append(all, imported...)
+	metadata, err := ensembles.ReadFile("ensembles.json")
+	if err != nil {
+		panic(err)
+	}
+	var additions []Template
+	if err := json.Unmarshal(metadata, &additions); err != nil {
+		panic("invalid embedded ensemble templates: " + err.Error())
+	}
+	for i := range additions {
+		code, err := ensembles.ReadFile("ensembles/" + additions[i].ID + ".ly")
+		if err != nil {
+			panic(err)
+		}
+		additions[i].Code = string(code)
+	}
+	return append(all, additions...)
 }
 
 func words(text string) []string {

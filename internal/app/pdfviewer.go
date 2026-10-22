@@ -167,6 +167,10 @@ func launchPDFViewer(ctx context.Context, path string) error {
 	if runtime.GOOS == "darwin" {
 		tool = "/usr/bin/open"
 	}
+	return runPDFOpener(ctx, tool, path)
+}
+
+func runPDFOpener(ctx context.Context, tool, path string) error {
 	// Absolute paths cannot be interpreted as options. Neither the opener nor
 	// a fallback viewer may read terminal input or write over Bubble Tea output.
 	path, err := filepath.Abs(path)

@@ -288,7 +288,7 @@ func TestLauncherRecentSelectionAndStaleResults(t *testing.T) {
 }
 
 func TestNewScoreTemplateConfirmationAndBackNavigation(t *testing.T) {
-	for _, query := range []string{"", "quartet string"} {
+	for _, query := range []string{"", "quartet string", "piano trio", "orchestra expanded winds"} {
 		t.Run(query, func(t *testing.T) {
 			dir := t.TempDir()
 			m := newLauncher(context.Background(), nil, dir, 100, 32)
@@ -377,7 +377,7 @@ func TestTemplateSearchEditingAndSelection(t *testing.T) {
 	}
 	m.insert("雨")
 	m.fieldKey(launchKey("\x7f"))
-	if len(m.field) != 0 || len(m.templates) != 23 {
+	if len(m.field) != 0 || len(m.templates) != len(scoretemplate.Search("")) {
 		t.Fatal("Unicode search/backspace was corrupted")
 	}
 	m.insert("q\n\x1b[2J")

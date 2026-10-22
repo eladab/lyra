@@ -1,0 +1,113 @@
+% Chamber with piano - Piano trio
+% Source: Lyra ensemble library
+% Original Lyra starter, not an excerpt from the LilyPond manual.
+% Instrumentation: Violin, cello, piano.
+% Enter all pitched music at CONCERT pitch in the *Music variables below.
+% The score converts it to written pitch and declares each MIDI transposition.
+% Reference: https://lilypond.org/doc/v2.26/Documentation/notation/displaying-pitches#instrument-transpositions
+% Replace each R1*4 with your music; keep all parts the same total duration.
+% Change the shared key, meter and tempo in global. R1*4 is four bars in 4/4.
+\version "2.26.0"
+
+#(set-global-staff-size 18)
+
+\header {
+  title = "Untitled"
+  subtitle = "Piano trio"
+  composer = "Composer"
+  tagline = ##f
+}
+
+\paper {
+  #(set-paper-size "a4")
+  indent = 38\mm
+  short-indent = 18\mm
+  ragged-last = ##f
+  ragged-bottom = ##t
+  ragged-last-bottom = ##t
+}
+
+global = {
+  \key c \major
+  \time 4/4
+  \tempo "Moderato" 4 = 96
+}
+
+% Violin - concert pitch.
+violinMusic = \relative c'' {
+  \global
+  R1*4
+  \bar "|."
+}
+
+% Cello - concert pitch.
+celloMusic = \relative c {
+  \global
+  R1*4
+  \bar "|."
+}
+
+% Piano right hand - concert pitch.
+pianoRightMusic = \relative c'' {
+  \global
+  R1*4
+  \bar "|."
+}
+
+% Piano left hand - concert pitch.
+pianoLeftMusic = \relative c {
+  \global
+  R1*4
+  \bar "|."
+}
+
+scoreMusic = <<
+  \new StaffGroup = "ensemble" <<
+    \new Staff = "violin" \with {
+      instrumentName = "Violin"
+      shortInstrumentName = "Vln."
+      midiInstrument = "violin"
+    } {
+      \clef treble
+      \violinMusic
+    }
+    \new Staff = "cello" \with {
+      instrumentName = "Cello"
+      shortInstrumentName = "Vc."
+      midiInstrument = "cello"
+    } {
+      \clef bass
+      \celloMusic
+    }
+    \new PianoStaff = "piano" \with {
+      instrumentName = "Piano"
+      shortInstrumentName = "Pno."
+    } <<
+      \new Staff = "pianoRight" \with {
+        midiInstrument = "acoustic grand"
+      } {
+        \clef treble
+        \pianoRightMusic
+      }
+      \new Staff = "pianoLeft" \with {
+        midiInstrument = "acoustic grand"
+      } {
+        \clef bass
+        \pianoLeftMusic
+      }
+    >>
+  >>
+>>
+
+\score {
+  \scoreMusic
+  \layout { }
+  \midi {
+    % Share channels by sound so full orchestral scores do not exhaust them.
+    % Staves sharing a sound also share MIDI controllers (volume, pan, etc.).
+    \context {
+      \Score
+      midiChannelMapping = #'instrument
+    }
+  }
+}

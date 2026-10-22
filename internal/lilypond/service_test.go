@@ -5,6 +5,7 @@ package lilypond
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,6 +99,59 @@ func TestIncludeAndAtomicRenameRebuild(t *testing.T) {
 			t.Fatal(err)
 		}
 		until(t, "atomic rename rebuild", func() bool { state := s.Snapshot(); return state.Status == "Ready" && state.Generation > previous })
+	}
+}
+
+func TestOpenLatestPDFPinsRetainedGoodGeneration(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "score.ly")
+	writeScore(t, file, "first PDF")
+	s, err := NewService(context.Background(), Options{Source: file, Executable: fakeCompiler(t), Debounce: 20 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	until(t, "first PDF", func() bool { return s.Snapshot().Status == "Ready" })
+	old := s.Snapshot().LastGood
+	pinned, err := s.OpenLatestPDF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pinned.Close()
+	writeScore(t, file, "second PDF")
+	s.Request(true)
+	until(t, "second PDF", func() bool {
+		state := s.Snapshot()
+		return state.Status == "Ready" && state.LastGood.Generation > old.Generation
+	})
+	until(t, "old PDF generation removed", func() bool {
+		_, err := os.Stat(old.PDFs[0])
+		return os.IsNotExist(err)
+	})
+	data, err := io.ReadAll(pinned)
+	if err != nil || !strings.Contains(string(data), "first PDF") {
+		t.Fatalf("pinned PDF lost on rebuild: %q %v", data, err)
+	}
+	writeScore(t, file, "fail")
+	s.Request(true)
+	until(t, "failed build", func() bool { return s.Snapshot().Status == "Failed" })
+	latest, err := s.OpenLatestPDF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer latest.Close()
+	data, err = io.ReadAll(latest)
+	if err != nil || !strings.Contains(string(data), "second PDF") {
+		t.Fatalf("failed build lost last good PDF: %q %v", data, err)
+	}
+}
+
+func TestOpenLatestPDFReportsMissingPDF(t *testing.T) {
+	for _, state := range []State{{}, {LastGood: &Result{MIDIs: []string{"score.midi"}}}} {
+		s := &Service{state: state}
+		reader, err := s.OpenLatestPDF()
+		if reader != nil || err == nil {
+			t.Fatal("missing PDF was not reported")
+		}
 	}
 }
 

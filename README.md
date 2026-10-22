@@ -52,17 +52,26 @@ Run `lyra` without a filename to open a startup chooser:
 The template picker starts with **Blank score** and includes all 22 template
 topics from the [LilyPond Learning Manual](https://lilypond.org/doc/v2.26/Documentation/learning/templates):
 single staff, piano, string quartet, vocal ensembles, orchestra, ancient notation
-and jazz, plus the built-in SATB/SSAATTBB starters. Names combine their section and
-subsection, such as **Single staff · Notes only**. Type to search, use Up/Down or
+and jazz, plus the built-in SATB/SSAATTBB starters. It also includes **15 Lyra
+ensemble starters**: string trio, both string-quintet variants, string sextet,
+piano trio/quartet/quintet, clarinet/woodwind/brass quintets, string orchestra,
+two chamber orchestras and two symphony orchestras. See the
+[instrumentation catalog](internal/scoretemplate/README.md#lyra-ensemble-starters)
+for the exact forces. Names combine their section and subsection, such as
+**Single staff · Notes only**. Type to search, use Up/Down or
 Ctrl+N/Ctrl+P to select, and Enter to create the file and open it in Vim. Ctrl+U
 clears the query and restores the blank option; Esc returns to the filename.
 Search accepts reordered words, partial words, common instrument aliases and
 small spelling mistakes: try `single staff notes only`, `quartet string`,
-`str qrt`, `violins viola cello`, or `lead sheet chords lyrics`.
+`str qrt`, `piano trio`, `two cellos quintet`, `chamber single winds`,
+`symphonic double winds`, or `lead sheet chords lyrics`.
 
-Templates are bundled from the official 2.26 manual and work offline. The selected
-code, version and source attribution are written to the new permanent score;
-blank creates a genuinely empty file. The file is created only when the template
+All templates work offline with LilyPond 2.26. The Lyra ensemble starters begin
+with four bars of rests, labeled parts and PDF/MIDI output. Enter concert-pitch
+notes in their music variables; the score handles written-pitch transposition
+and sounding MIDI pitches. The selected code, version and source attribution are
+written to the new permanent score; blank creates a genuinely empty file.
+The file is created only when the template
 or blank choice is confirmed. Cancelling the picker creates nothing, and a path
 that appears while you search is refused. User scores are never replaced.
 

@@ -35,6 +35,30 @@ func TestPrefixAcrossReads(t *testing.T) {
 	}
 }
 
+func TestOpenPDFPreservesOrdinaryKeysAndPaste(t *testing.T) {
+	data := []byte("o\x1co\x1b[200~o\x1co\x1b[201~")
+	for split := 0; split <= len(data); split++ {
+		var r Router
+		events := append(r.Feed(data[:split]), r.Feed(data[split:])...)
+		events = append(events, r.Flush()...)
+		var keys []byte
+		opens := 0
+		for _, event := range events {
+			switch event.Action {
+			case OpenPDF:
+				opens++
+			case None:
+				keys = append(keys, event.Data...)
+			default:
+				t.Fatal(event.Action)
+			}
+		}
+		if opens != 1 || string(keys) != "o\x1b[200~o\x1co\x1b[201~" {
+			t.Fatalf("split %d: %q, opens=%d", split, keys, opens)
+		}
+	}
+}
+
 func TestBuildControlsPreserveOrdinaryInputAndPaste(t *testing.T) {
 	var r Router
 	events := r.Feed([]byte("bc\x1cb\x1cc\x1b[200~\x1cb\x1cc\x1b[201~"))
